@@ -47,8 +47,8 @@ export const GameTypeForm = () => {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="standard">Standard (Single Number)</SelectItem>
-                            <SelectItem value="pares_p2">Pares P2 (2 Groups)</SelectItem>
-                            <SelectItem value="pares_p3">Pares P3 (3 Groups)</SelectItem>
+                            <SelectItem value="3D">3D (National)</SelectItem>
+                            <SelectItem value="L3D">L3D (Local)</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>

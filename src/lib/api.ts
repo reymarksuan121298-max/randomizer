@@ -5,11 +5,12 @@ const api = axios.create({
 });
 
 export const batchAPI = {
-    getBatchById: (id: string) => api.get(`/batches/${id}`),
+    getBatchById: (id: number) => api.get(`/batches/${id}`),
+    getBatchByCode: (batchCode: string) => api.get(`/batches/code/${encodeURIComponent(batchCode)}`),
 };
 
 export const gameTypeAPI = {
-    getByCompanyId: (companyId: string) => api.get(`/companies/${companyId}/game-types`),
+    getByCompanyId: (companyId: number) => api.get(`/companies/${companyId}/game-types`),
 };
 
 export default api;

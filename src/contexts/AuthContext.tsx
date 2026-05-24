@@ -1,41 +1,83 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import type { User } from '@supabase/supabase-js';
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { getUserProfileFromDatabase, type UserProfile } from '@/lib/database';
 
 interface AuthContextType {
-    user: any;
+    user: User | null;
+    profile: UserProfile | null;
     login: (credentials: any) => Promise<void>;
-    logout: () => void;
+    logout: () => Promise<void>;
     isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<any>(null);
+    const [user, setUser] = useState<User | null>(null);
+    const [profile, setProfile] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        // Check for existing session
-        const savedUser = localStorage.getItem('user');
-        if (savedUser) {
-            setUser(JSON.parse(savedUser));
+    const loadProfile = async (nextUser: User | null) => {
+        setUser(nextUser);
+        if (!nextUser) {
+            setProfile(null);
+            return;
         }
-        setIsLoading(false);
+
+        try {
+            const nextProfile = await getUserProfileFromDatabase(nextUser.id, nextUser.email);
+            setProfile(nextProfile);
+        } catch (error) {
+            console.error(error);
+            setProfile(null);
+        }
+    };
+
+    useEffect(() => {
+        if (!isSupabaseConfigured) {
+            localStorage.removeItem('user');
+            setIsLoading(false);
+            return;
+        }
+
+        supabase.auth.getSession().then(async ({ data }) => {
+            await loadProfile(data.session?.user ?? null);
+            setIsLoading(false);
+        });
+
+        const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+            loadProfile(session?.user ?? null);
+        });
+
+        return () => listener.subscription.unsubscribe();
     }, []);
 
     const login = async (credentials: any) => {
-        // Basic mock login
-        const mockUser = { id: '1', email: credentials.email, name: 'Admin User' };
-        setUser(mockUser);
-        localStorage.setItem('user', JSON.stringify(mockUser));
+        if (!isSupabaseConfigured) {
+            throw new Error('Supabase is not configured.');
+        }
+
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: credentials.email,
+            password: credentials.password,
+        });
+
+        if (error) throw error;
+        await loadProfile(data.user);
     };
 
-    const logout = () => {
+    const logout = async () => {
+        if (isSupabaseConfigured) {
+            await supabase.auth.signOut();
+        }
         setUser(null);
+        setProfile(null);
         localStorage.removeItem('user');
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+        <AuthContext.Provider value={{ user, profile, login, logout, isLoading }}>
             {children}
         </AuthContext.Provider>
     );

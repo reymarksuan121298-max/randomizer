@@ -10,7 +10,7 @@ export const BookletInputForm = () => {
     const [config, setConfig] = useState({
         revenue: 5000,
         payout: 1750,
-        company: "ADS",
+        company: "",
         drawTime: "11:00 AM"
     });
 

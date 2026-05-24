@@ -5,7 +5,7 @@ export interface GameType {
     multiplier: number;
     time?: string;
     isNational: boolean;
-    gameFormat?: 'standard' | 'pares_p2' | 'pares_p3';
+    gameFormat?: 'standard' | '3D' | 'L3D';
     numberRangeMin?: number;
     numberRangeMax?: number;
     ekisMultiplier?: number;

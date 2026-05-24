@@ -10,6 +10,7 @@ import { Loader2, Play, ArrowLeft } from "lucide-react";
 import { generateBookletBatch } from "@/utils/lotteryGenerator";
 import { gameTypes } from "@/data/gameTypes";
 import type { Batch } from "./BatchesPage";
+import { databaseEnabled, saveGeneratedBatchToDatabase } from "@/lib/database";
 
 const BatchEditPage = () => {
     const { id } = useParams();
@@ -19,7 +20,7 @@ const BatchEditPage = () => {
         bookletCount: 1,
         targetRevenue: 50000,
         targetPayout: 15000,
-        companyCode: "ADS",
+        companyCode: "",
         drawTime: "11:00 AM"
     });
     const [isGenerating, setIsGenerating] = useState(false);
@@ -53,6 +54,9 @@ const BatchEditPage = () => {
                 {}, // winningNumbers (empty for now, will be distributed)
                 config.companyCode
             );
+            generatedData.id = id;
+            generatedData.name = batch.name;
+            generatedData.province = batch.province;
 
             // Update batch in list
             const saved = localStorage.getItem('batches');
@@ -70,9 +74,18 @@ const BatchEditPage = () => {
 
                 // Save the detailed batch data separately
                 localStorage.setItem(`batch_data_${id}`, JSON.stringify(generatedData));
+
+                const updatedBatch = updatedBatches.find((b: Batch) => b.id === id);
+                if (updatedBatch && databaseEnabled()) {
+                    await saveGeneratedBatchToDatabase(updatedBatch, generatedData, {
+                        companyName: updatedBatch.province || updatedBatch.name,
+                        companyCode: config.companyCode,
+                        gameTypes,
+                    });
+                }
             }
 
-            toast.success("Batch generated successfully!");
+            toast.success(`Batch generated successfully${databaseEnabled() ? " and saved to database" : ""}!`);
             navigate(`/batch/${id}`);
         } catch (error) {
             console.error(error);

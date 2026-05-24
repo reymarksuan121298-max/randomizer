@@ -1,13 +1,42 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+    AlertTriangle,
+    ArrowLeft,
+    CheckCircle2,
+    ChevronDown,
+    Download,
+    Eye,
+    FileSpreadsheet,
+    FileText,
+    Trophy,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Download, Eye } from "lucide-react";
-import { SheetCard } from "@/components/SheetCard";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { BookletBatch } from "@/types/lottery";
+import { exportAlphaList } from "@/utils/alphaListExport";
+import { exportToCSV } from "@/utils/csvExport";
 import { exportToExcel } from "@/utils/excelExport";
 import { toast } from "sonner";
+import { databaseEnabled, getBatchDetailFromDatabase } from "@/lib/database";
+
+type DrawSummary = {
+    time: string;
+    sheets: Set<string>;
+    revenue: number;
+    payout: number;
+    winners: number;
+};
+
+const DRAW_ORDER = ["10:30 AM", "2:00 PM", "3:00 PM", "5:00 PM", "7:00 PM", "9:00 PM"];
 
 export const BatchDetailPage = () => {
     const { id } = useParams();
@@ -16,26 +45,142 @@ export const BatchDetailPage = () => {
     const [selectedBookletIdx, setSelectedBookletIdx] = useState(0);
 
     useEffect(() => {
-        const saved = localStorage.getItem(`batch_data_${id}`);
-        if (saved) {
-            setBatchData(JSON.parse(saved));
-        }
+        let cancelled = false;
+
+        const load = async () => {
+            if (!id) return;
+
+            if (databaseEnabled()) {
+                try {
+                    const dbBatch = await getBatchDetailFromDatabase(id);
+                    if (dbBatch && !cancelled) {
+                        setBatchData(dbBatch);
+                        localStorage.setItem(`batch_data_${id}`, JSON.stringify(dbBatch));
+                        return;
+                    }
+                } catch (error) {
+                    console.error(error);
+                    toast.error("Could not load this batch from database. Trying local data.");
+                }
+            }
+
+            const saved = localStorage.getItem(`batch_data_${id}`);
+            if (saved && !cancelled) {
+                setBatchData(JSON.parse(saved));
+            }
+        };
+
+        load();
+
+        return () => {
+            cancelled = true;
+        };
     }, [id]);
 
-    const handleExport = async () => {
+    const analysis = useMemo(() => {
+        if (!batchData) return null;
+
+        const drawMap = new Map<string, DrawSummary>();
+        const gameTypes = new Set<string>();
+        const winningMap = new Map<string, { label: string; number: string; payout: number }>();
+        let explicitPayout = 0;
+
+        batchData.booklets.forEach((booklet) => {
+            booklet.sheets.forEach((sheet) => {
+                sheet.tickets.forEach((ticket) => {
+                    ticket.numberBets.forEach((bet) => {
+                        const time = bet.gameTypeTime || "Unscheduled";
+                        const gameName = bet.gameTypeName || "Game";
+                        const key = `${time}-${gameName}`;
+                        gameTypes.add(key);
+
+                        if (!drawMap.has(time)) {
+                            drawMap.set(time, {
+                                time,
+                                sheets: new Set<string>(),
+                                revenue: 0,
+                                payout: 0,
+                                winners: 0,
+                            });
+                        }
+
+                        const draw = drawMap.get(time)!;
+                        draw.sheets.add(`${booklet.bookletNumber}-${sheet.id}`);
+                        draw.revenue += bet.bet;
+
+                        const payout = Number((bet as any).payout || (bet as any).payoutAmount || (bet as any).win || 0);
+                        if (payout > 0) {
+                            draw.payout += payout;
+                            draw.winners += 1;
+                            explicitPayout += payout;
+                            winningMap.set(key, {
+                                label: `${gameName}_${time}`.replace(/\s+/g, ""),
+                                number: bet.number,
+                                payout,
+                            });
+                        } else if (!winningMap.has(key)) {
+                            winningMap.set(key, {
+                                label: `${gameName}_${time}`.replace(/\s+/g, ""),
+                                number: bet.number,
+                                payout: 0,
+                            });
+                        }
+                    });
+                });
+            });
+        });
+
+        const totalPayout = batchData.totalPayout || explicitPayout || 0;
+        const totalRevenue = batchData.grandTotalBets || batchData.totalDailyRevenue || 0;
+        const drawSummaries = Array.from(drawMap.values()).sort((a, b) => {
+            const ai = DRAW_ORDER.indexOf(a.time);
+            const bi = DRAW_ORDER.indexOf(b.time);
+            return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+        });
+
+        const payoutFromDraws = drawSummaries.reduce((sum, draw) => sum + draw.payout, 0);
+        if (payoutFromDraws === 0 && totalPayout > 0 && totalRevenue > 0) {
+            drawSummaries.forEach((draw) => {
+                draw.payout = Math.round((draw.revenue / totalRevenue) * totalPayout);
+            });
+        }
+
+        return {
+            totalRevenue,
+            totalPayout,
+            gameTypeCount: gameTypes.size,
+            prizeFund: totalRevenue * 0.339,
+            drawSummaries,
+            winningNumbers: Array.from(winningMap.values()).slice(0, 6),
+        };
+    }, [batchData]);
+
+    const runReport = async (kind: string) => {
         if (!batchData) return;
         try {
-            await exportToExcel(batchData, batchData.booklets);
-            toast.success("Excel exported successfully!");
-        } catch (error) {
-            toast.error("Export failed");
+            if (kind === "csv") {
+                exportToCSV(batchData);
+                toast.success("CSV exported.");
+            } else if (kind === "alpha") {
+                await exportAlphaList(batchData);
+                toast.success("Alpha list exported.");
+            } else if (kind === "dsr") {
+                navigate(`/batch/${id}/preview/dsr`);
+            } else if (kind === "sod") {
+                navigate(`/batch/${id}/preview/sod`);
+            } else {
+                await exportToExcel(batchData, batchData.booklets);
+                toast.success("Excel exported.");
+            }
+        } catch {
+            toast.error("Report export failed.");
         }
     };
 
-    if (!batchData) {
+    if (!batchData || !analysis) {
         return (
-            <div className="container mx-auto py-20 text-center">
-                <h2 className="text-2xl font-bold mb-4">Batch data not found or not yet generated</h2>
+            <div className="mx-auto max-w-xl py-20 text-center">
+                <h2 className="mb-4 text-2xl font-bold">Batch data not found or not yet generated</h2>
                 <Button asChild>
                     <Link to={`/batch/${id}/edit`}>Go to Generation Page</Link>
                 </Button>
@@ -43,118 +188,194 @@ export const BatchDetailPage = () => {
         );
     }
 
+    const createdDate = batchData.generatedAt || batchData.date;
+
     return (
-        <div className="container mx-auto py-8 px-4">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-                <div className="flex items-center gap-4">
-                    <Button variant="outline" size="icon" asChild>
-                        <Link to="/batches"><ArrowLeft className="h-4 w-4" /></Link>
-                    </Button>
-                    <div>
-                        <h1 className="text-3xl font-bold text-primary">{batchData.name}</h1>
-                        <p className="text-muted-foreground">Generated on {new Date(batchData.date).toLocaleString()}</p>
+        <main className="min-h-screen bg-[#f7f8fa] px-6 py-5 text-slate-950">
+            <div className="mx-auto max-w-[1180px] space-y-6">
+                <header className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                        <Button
+                            variant="outline"
+                            className="h-8 rounded-md border-slate-200 bg-white px-4 text-[10px] font-black uppercase"
+                            onClick={() => navigate("/batches")}
+                        >
+                            <ArrowLeft className="h-3.5 w-3.5" />
+                            Back to Batches
+                        </Button>
+                        <div>
+                            <h1 className="font-mono text-xl font-black uppercase leading-none text-[#f7b500]">
+                                {batchData.id || id}
+                            </h1>
+                            <p className="mt-2 text-xs uppercase text-slate-600">
+                                {batchData.province || batchData.name} - Created {new Date(createdDate).toLocaleDateString("en-US")}
+                            </p>
+                        </div>
                     </div>
-                </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" className="gap-2" onClick={() => navigate(`/batch/${id}/preview/dsr`)}>
-                        <Eye className="h-4 w-4" /> DSR Preview
-                    </Button>
-                    <Button className="gap-2" onClick={handleExport}>
-                        <Download className="h-4 w-4" /> Export Excel
-                    </Button>
+
+                    <div className="flex items-center gap-2">
+                        <ReportsMenu onRun={runReport} />
+                        <span className="inline-flex h-8 items-center gap-1 rounded-full bg-emerald-100 px-3 text-xs font-bold text-emerald-600">
+                            <CheckCircle2 className="h-4 w-4" />
+                            Approved
+                        </span>
+                    </div>
+                </header>
+
+                <section className="rounded-lg border-2 border-[#f7b500] bg-white p-5">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+                        <Metric label="Total Booklets" value={String(batchData.booklets.length)} accent="text-[#f7b500]" />
+                        <Metric label="Daily Revenue" value={formatMoney(analysis.totalRevenue)} />
+                        <Metric label="Grand Total Bets" value={formatMoney(batchData.grandTotalBets)} accent="text-[#f7b500]" />
+                        <Metric label="Total Payout" value={formatMoney(analysis.totalPayout)} danger />
+                        <Metric label="Prize Fund (33.9% of Daily Revenue)" value={formatMoney(analysis.prizeFund)} purple />
+                        <Metric label="Game Types" value={`${analysis.gameTypeCount} types`} />
+                    </div>
+
+                    <div className="mt-6 grid grid-cols-3 gap-6 border-t border-slate-200 pt-4 text-xs">
+                        <Info label="Created By" value={(batchData as any).createdBy || "Not recorded"} />
+                        <Info label="Company" value={batchData.name || batchData.province || "Not recorded"} />
+                        <Info label="Approved By" value={(batchData as any).approvedBy || "Not recorded"} />
+                    </div>
+
+                    <div className="mt-6">
+                        <h2 className="mb-3 flex items-center gap-2 text-xs font-black uppercase text-[#f7b500]">
+                            <Trophy className="h-4 w-4" />
+                            Winning Numbers
+                        </h2>
+                        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                            {analysis.winningNumbers.map((winner) => (
+                                <div key={winner.label} className="rounded-lg bg-slate-50 px-4 py-3 text-center">
+                                    <div className="truncate text-[10px] uppercase text-slate-500">{winner.label}</div>
+                                    <div className="mt-1 font-mono text-xl font-black text-[#f7b500]">{winner.number}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="mt-4 rounded-md border border-[#f7b500] bg-[#fff8e6] px-4 py-3 text-xs text-amber-700">
+                        <span className="inline-flex items-center gap-2 font-black">
+                            <AlertTriangle className="h-4 w-4" />
+                            Important:
+                        </span>{" "}
+                        Please verify that the Grand Total Bets ({formatMoney(batchData.grandTotalBets)}) and Total Payout ({formatMoney(analysis.totalPayout)}) match your daily sales report.
+                    </div>
+                </section>
+
+                <section className="rounded-lg border-2 border-[#f7b500] bg-white p-5">
+                    <h2 className="mb-4 text-sm font-black uppercase text-[#f7b500]">Per-Draw Summary (All Booklets)</h2>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        {analysis.drawSummaries.map((draw) => (
+                            <DrawCard key={draw.time} draw={draw} />
+                        ))}
+                    </div>
+                </section>
+
+                <div className="flex justify-center gap-3">
+                    {batchData.booklets.map((booklet, idx) => (
+                        <button
+                            key={booklet.id}
+                            className={`rounded-md px-4 py-2 font-mono text-[10px] font-black uppercase ${selectedBookletIdx === idx
+                                ? "bg-[#f7b500] text-slate-950"
+                                : "bg-white text-slate-500"
+                                }`}
+                            onClick={() => setSelectedBookletIdx(idx)}
+                        >
+                            {booklet.id || `Booklet ${idx + 1}`}
+                        </button>
+                    ))}
                 </div>
             </div>
+        </main>
+    );
+};
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                <div className="lg:col-span-1 space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg">Stats Summary</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex justify-between items-center py-2 border-b">
-                                <span className="text-sm text-muted-foreground">Booklets</span>
-                                <span className="font-bold">{batchData.booklets.length}</span>
-                            </div>
-                            <div className="flex justify-between items-center py-2 border-b text-blue-600">
-                                <span className="text-sm">Total Revenue</span>
-                                <span className="font-bold">₱{batchData.grandTotalBets.toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between items-center py-2 border-b text-red-600">
-                                <span className="text-sm">Total Payout</span>
-                                <span className="font-bold">₱{(batchData.totalPayout || 0).toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between items-center py-2">
-                                <span className="text-sm font-medium">Net Revenue</span>
-                                <span className="font-bold">₱{(batchData.grandTotalBets - (batchData.totalPayout || 0)).toLocaleString()}</span>
-                            </div>
-                        </CardContent>
-                    </Card>
+const ReportsMenu = ({ onRun }: { onRun: (kind: string) => void }) => (
+    <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+            <Button
+                variant="outline"
+                className="h-9 rounded-md border-[#f7b500] bg-white px-4 text-[10px] font-black uppercase text-slate-950"
+            >
+                <FileText className="h-4 w-4" />
+                Reports
+                <ChevronDown className="h-4 w-4" />
+            </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56 rounded-md border-slate-200 bg-white p-1 text-slate-950 shadow-lg">
+            <ReportItem icon={<Download className="h-4 w-4" />} label="Export CSV (Detailed)" onClick={() => onRun("csv")} />
+            <ReportItem icon={<FileText className="h-4 w-4" />} label="Export Table (Simple)" onClick={() => onRun("table")} />
+            <ReportItem icon={<FileSpreadsheet className="h-4 w-4" />} label="Export Excel (Formatted)" onClick={() => onRun("excel")} />
+            <ReportItem icon={<Trophy className="h-4 w-4" />} label="Daily/Batch Alpha List" onClick={() => onRun("alpha")} />
+            <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="gap-2 rounded-sm bg-white py-2 text-xs font-medium text-slate-700 focus:bg-slate-50">
+                    <Trophy className="h-4 w-4" />
+                    Booklet Alpha Lists
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="rounded-md border-slate-200 bg-white p-1 text-slate-950 shadow-lg">
+                    <DropdownMenuItem className="rounded-sm py-2 text-xs" onClick={() => onRun("alpha")}>
+                        All Booklets
+                    </DropdownMenuItem>
+                </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <ReportItem icon={<Eye className="h-4 w-4" />} label="DSR Preview" onClick={() => onRun("dsr")} />
+            <ReportItem icon={<Eye className="h-4 w-4" />} label="SOD Preview" onClick={() => onRun("sod")} />
+        </DropdownMenuContent>
+    </DropdownMenu>
+);
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg">Select Booklet</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-2">
-                            <div className="max-h-[400px] overflow-y-auto space-y-1">
-                                {batchData.booklets.map((booklet, idx) => (
-                                    <button
-                                        key={booklet.id}
-                                        className={`w-full text-left px-4 py-3 rounded-md transition-colors text-sm font-medium ${selectedBookletIdx === idx ? 'bg-primary text-primary-foreground shadow-md' : 'hover:bg-muted'
-                                            }`}
-                                        onClick={() => setSelectedBookletIdx(idx)}
-                                    >
-                                        Booklet #{idx + 1}
-                                        <div className={`text-[10px] ${selectedBookletIdx === idx ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                                            {booklet.sheets.length} sheets • ₱{booklet.revenue.toLocaleString()}
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+const ReportItem = ({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) => (
+    <DropdownMenuItem className="gap-2 rounded-sm bg-white py-2 text-xs font-medium text-slate-700 focus:bg-slate-50" onClick={onClick}>
+        {icon}
+        {label}
+    </DropdownMenuItem>
+);
 
-                <div className="lg:col-span-3">
-                    <Tabs defaultValue="sheets">
-                        <div className="flex justify-between items-center mb-6">
-                            <TabsList>
-                                <TabsTrigger value="sheets">Sheets View</TabsTrigger>
-                                <TabsTrigger value="winning">Winning Numbers</TabsTrigger>
-                            </TabsList>
-                            <div className="text-sm font-medium bg-muted px-3 py-1 rounded-full border">
-                                Current: Booklet #{selectedBookletIdx + 1}
-                            </div>
-                        </div>
+const Metric = ({ label, value, accent, danger, purple }: { label: string; value: string; accent?: string; danger?: boolean; purple?: boolean }) => (
+    <div className={`rounded-lg bg-slate-50 px-4 py-4 ${danger ? "border-l-2 border-red-500" : ""} ${purple ? "border-l-2 border-purple-500" : ""}`}>
+        <div className="mb-2 text-[10px] text-slate-500">{label}</div>
+        <div className={`font-mono text-base font-black ${danger ? "text-red-500" : purple ? "text-purple-600" : accent || "text-slate-950"}`}>
+            {value}
+        </div>
+    </div>
+);
 
-                        <TabsContent value="sheets" className="mt-0">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {batchData.booklets[selectedBookletIdx].sheets.map((sheet) => (
-                                    <SheetCard key={sheet.id} sheet={sheet} />
-                                ))}
-                            </div>
-                        </TabsContent>
+const Info = ({ label, value }: { label: string; value: string }) => (
+    <div>
+        <div className="text-[10px] text-slate-500">{label}</div>
+        <div className="text-xs font-black text-slate-950">{value}</div>
+    </div>
+);
 
-                        <TabsContent value="winning">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Winning Numbers for Booklet #{selectedBookletIdx + 1}</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                        {/* Note: In a real app, winning numbers might be shared or per booklet */}
-                                        <div className="border rounded p-4 text-center">
-                                            <div className="text-xs text-muted-foreground uppercase font-bold mb-2">Sample Result</div>
-                                            <div className="text-3xl font-mono font-bold tracking-widest text-primary">---</div>
-                                            <p className="text-[10px] mt-2 text-muted-foreground italic">Numbers generated as needed</p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                    </Tabs>
-                </div>
+const DrawCard = ({ draw }: { draw: DrawSummary }) => {
+    const net = draw.revenue - draw.payout;
+    const margin = draw.revenue > 0 ? (net / draw.revenue) * 100 : 0;
+
+    return (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-xs font-black uppercase text-[#f7b500]">{draw.time}</h3>
+                {draw.winners > 0 && (
+                    <span className="rounded bg-[#fff0bf] px-2 py-1 text-[10px] font-black text-[#c18300]">x {draw.winners}</span>
+                )}
+            </div>
+            <DrawLine label="Sheets:" value={String(draw.sheets.size)} />
+            <DrawLine label="Revenue:" value={formatMoney(draw.revenue)} good />
+            <DrawLine label="Payout:" value={formatMoney(draw.payout)} bad={draw.payout > 0} />
+            <div className="mt-3 border-t border-slate-200 pt-2">
+                <DrawLine label="Net Profit:" value={`${formatMoney(net)} (${margin.toFixed(1)}%)`} blue />
             </div>
         </div>
     );
 };
+
+const DrawLine = ({ label, value, good, bad, blue }: { label: string; value: string; good?: boolean; bad?: boolean; blue?: boolean }) => (
+    <div className="flex items-center justify-between py-1 text-xs">
+        <span className="text-slate-500">{label}</span>
+        <span className={`font-mono font-black ${good ? "text-green-600" : bad ? "text-red-500" : blue ? "text-blue-600" : "text-slate-950"}`}>
+            {value}
+        </span>
+    </div>
+);
+
+const formatMoney = (value: number) => `P${Math.round(value || 0).toLocaleString()}`;

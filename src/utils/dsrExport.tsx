@@ -3,7 +3,7 @@ import type { BookletBatch } from '@/types/lottery';
 
 export async function prepareDSRWorkbook(
     batchData: BookletBatch,
-    _dsrData: any, // Placeholder for specific report data
+    _dsrData: any,
     companyData: any
 ): Promise<ExcelJS.Workbook> {
     const workbook = new ExcelJS.Workbook();
@@ -18,7 +18,7 @@ export async function prepareDSRWorkbook(
 
     sheet.addRow(['Batch:', batchData.name]);
     sheet.addRow(['Date:', new Date(batchData.date).toLocaleDateString()]);
-    sheet.addRow(['Company:', companyData?.name || 'ADS']);
+    sheet.addRow(['Company:', companyData?.name || batchData.name || 'Not configured']);
     sheet.addRow([]);
 
     // Table Header

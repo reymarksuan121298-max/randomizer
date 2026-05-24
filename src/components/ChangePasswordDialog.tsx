@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 
 export const ChangePasswordDialog = ({ open, onOpenChange }: any) => {
     const [passwords, setPasswords] = useState({
@@ -12,11 +13,21 @@ export const ChangePasswordDialog = ({ open, onOpenChange }: any) => {
         confirm: ""
     });
 
-    const handleUpdate = () => {
+    const handleUpdate = async () => {
         if (passwords.new !== passwords.confirm) {
             return toast.error("New passwords do not match");
         }
+        if (passwords.new.length < 8) {
+            return toast.error("New password must be at least 8 characters.");
+        }
+
+        const { error } = await supabase.auth.updateUser({ password: passwords.new });
+        if (error) {
+            return toast.error(error.message);
+        }
+
         toast.success("Password updated successfully");
+        setPasswords({ current: "", new: "", confirm: "" });
         onOpenChange(false);
     };
 

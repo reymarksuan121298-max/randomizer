@@ -15,8 +15,6 @@ import CompanySettingsPage from "./pages/CompanySettingsPage";
 import PrizeUtilizationPage from "./pages/PrizeUtilizationPage";
 import { DSRPreviewPage } from "./pages/preview/DSRPreviewPage";
 import { SODPreviewPage } from "./pages/preview/SODPreviewPage";
-import DemoPage from "./pages/DemoPage";
-import DemoVisayasPage from "./pages/DemoVisayasPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,8 +28,6 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/demo" element={<DemoPage />} />
-            <Route path="/demo/visayas" element={<DemoVisayasPage />} />
 
             <Route
               path="/"

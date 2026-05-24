@@ -25,7 +25,7 @@ export const SODPreviewPage = () => {
         if (!batchData) return;
         setIsExporting(true);
         try {
-            const workbook = await prepareSODWorkbook(batchData, { name: "ADS" });
+            const workbook = await prepareSODWorkbook(batchData, { name: batchData.name || batchData.province });
             const buffer = await workbook.xlsx.writeBuffer();
             const data = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
             saveAs(data, `SOD_${batchData.name}.xlsx`);
@@ -58,7 +58,7 @@ export const SODPreviewPage = () => {
                     <div className="max-w-4xl mx-auto border p-12 shadow-inner bg-white text-black font-mono text-sm">
                         <div className="text-center font-bold text-xl mb-4 underline">STATEMENT OF DRAW</div>
                         <div className="mb-6">
-                            <div>COMPANY: ADS</div>
+                            <div>COMPANY: {batchData.name || batchData.province || "Not configured"}</div>
                             <div>DATE: {new Date(batchData.date).toLocaleDateString()}</div>
                         </div>
                         <div className="border-y-2 border-black py-2 grid grid-cols-3 font-bold mb-4">

@@ -1,37 +1,28 @@
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
+import { AlertTriangle, ArrowLeft, Calendar, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Edit, Eye, FileSpreadsheet, FileText, LayoutTemplate, Save, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import {
     Dialog,
     DialogContent,
     DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogFooter,
 } from "@/components/ui/dialog";
-import {
-    ArrowLeft,
-    Search,
-    Calendar,
-    FileText,
-    LayoutTemplate,
-    Trash2,
-    Eye,
-    Edit,
-    ChevronDown,
-    ChevronLeft,
-    ChevronRight,
-    FileSpreadsheet,
-    Plus,
-    AlertTriangle,
-} from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import {
+    databaseEnabled,
+    deleteBatchFromDatabase,
+    getBatchDetailFromDatabase,
+    listBatchesFromDatabase,
+    updateBatchInDatabase,
+} from "@/lib/database";
 
-// ─── Batch type (also used by BatchEditPage) ────────────────────────────────
 export interface Batch {
     id: string;
     name: string;
@@ -49,7 +40,6 @@ export interface Batch {
 const BATCHES_KEY = "batches";
 const PAGE_SIZE = 9;
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 const loadBatches = (): Batch[] => {
     try {
         const raw = localStorage.getItem(BATCHES_KEY);
@@ -63,158 +53,284 @@ const saveBatches = (batches: Batch[]) => {
     localStorage.setItem(BATCHES_KEY, JSON.stringify(batches));
 };
 
-const generateId = (province: string, date: string) => {
-    const code = province.toUpperCase().slice(0, 3);
-    const d = date.replace(/-/g, "");
-    const rand = Math.floor(Math.random() * 900000000 + 100000000);
-    return `${code}-${d}-${rand}`;
-};
-
-const formatDate = (iso: string) => {
+const formatDateTime = (iso: string) => {
     try {
         return new Date(iso).toLocaleString("en-PH", {
-            month: "short", day: "numeric", year: "numeric",
-            hour: "numeric", minute: "2-digit", hour12: true,
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
         });
     } catch {
         return iso;
     }
 };
 
+const statusLabel: Record<Batch["status"], string> = {
+    approved: "Approved",
+    generated: "Approved",
+    pending: "Pending",
+};
+
 const statusStyle: Record<Batch["status"], string> = {
-    approved: "bg-green-100/50 border border-green-200 text-green-600",
-    generated: "bg-blue-100/50 border border-blue-200 text-blue-600",
-    pending: "bg-yellow-100/50 border border-yellow-200 text-yellow-600",
+    approved: "bg-emerald-100 text-emerald-600",
+    generated: "bg-emerald-100 text-emerald-600",
+    pending: "bg-amber-100 text-amber-600",
 };
 
-const statusDot: Record<Batch["status"], string> = {
-    approved: "bg-green-500",
-    generated: "bg-blue-500",
-    pending: "bg-yellow-500",
-};
+interface SerialRange {
+    bookletNumber: number;
+    start: string;
+    end: string;
+    count: number;
+}
 
-// ─── Default form state ──────────────────────────────────────────────────────
 const emptyForm = () => ({
     name: "",
     province: "",
-    date: new Date().toISOString().slice(0, 10),
+    date: "",
+    totalPayout: "",
     booklets: 4,
     createdBy: "Manager",
+    serialRanges: [] as SerialRange[],
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
+const formatCurrency = (value?: number, fallback = "PHP 0") => {
+    if (value == null) return fallback;
+    return `PHP ${value.toLocaleString()}`;
+};
+
+const formatDisplayDate = (iso: string) => {
+    if (!iso) return "";
+    const date = new Date(`${iso}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return iso;
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${month}/${day}/${date.getFullYear()}`;
+};
+
+const parseDisplayDate = (value: string) => {
+    const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!match) return value;
+    const [, month, day, year] = match;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+};
+
+const getBatchDetails = (batchId: string) => {
+    try {
+        const raw = localStorage.getItem(`batch_data_${batchId}`);
+        return raw ? JSON.parse(raw) : null;
+    } catch {
+        return null;
+    }
+};
+
+const setLocalBatchDetails = (batchId: string, details: any) => {
+    localStorage.setItem(`batch_data_${batchId}`, JSON.stringify(details));
+};
+
+const deriveSerialRanges = (batch: Batch): SerialRange[] => {
+    const details = getBatchDetails(batch.id);
+    if (details?.booklets?.length) {
+        return details.booklets.map((booklet: any, index: number) => {
+            const serials: string[] = [];
+            booklet.sheets?.forEach((sheet: any) => {
+                sheet.tickets?.forEach((ticket: any) => {
+                    if (ticket.serialNumber) serials.push(String(ticket.serialNumber));
+                });
+            });
+
+            serials.sort();
+            const fallbackStart = String(1000001 + index * 250);
+            const fallbackEnd = String(Number(fallbackStart) + 249);
+
+            return {
+                bookletNumber: booklet.bookletNumber || index + 1,
+                start: serials[0] || booklet.serialStart || fallbackStart,
+                end: serials[serials.length - 1] || booklet.serialEnd || fallbackEnd,
+                count: serials.length || 250,
+            };
+        });
+    }
+
+    const codeMatch = batch.id.match(/(\d{9,})$/);
+    const base = codeMatch ? Number(codeMatch[1]) : 1000001;
+    return Array.from({ length: batch.booklets || 1 }, (_, index) => {
+        const start = base + index * 250;
+        return {
+            bookletNumber: index + 1,
+            start: String(start),
+            end: String(start + 249),
+            count: 250,
+        };
+    });
+};
+
 export const BatchesPage = () => {
     const navigate = useNavigate();
-
-    // ── State ─────────────────────────────────────────────────────────────────
     const [batches, setBatches] = useState<Batch[]>(loadBatches);
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
-
-    // Create dialog
-    const [showCreate, setShowCreate] = useState(false);
-    const [createForm, setCreateForm] = useState(emptyForm());
-
-    // Edit dialog
     const [editTarget, setEditTarget] = useState<Batch | null>(null);
-    const [editForm, setEditForm] = useState({ name: "", province: "", booklets: 4, createdBy: "" });
-
-    // Delete dialog
+    const [editForm, setEditForm] = useState(emptyForm());
     const [deleteTarget, setDeleteTarget] = useState<Batch | null>(null);
 
-    // ── Persist whenever batches changes ──────────────────────────────────────
     useEffect(() => {
         saveBatches(batches);
     }, [batches]);
 
-    // ── Filtered + paginated list ─────────────────────────────────────────────
+    useEffect(() => {
+        if (!databaseEnabled()) return;
+
+        let cancelled = false;
+        listBatchesFromDatabase()
+            .then((dbBatches) => {
+                if (cancelled) return;
+                setBatches(dbBatches);
+                saveBatches(dbBatches);
+            })
+            .catch((error) => {
+                console.error(error);
+                toast.error("Could not load batches from database. Showing local data.");
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     const filtered = useMemo(() => {
         const q = search.toLowerCase();
         return batches.filter(
             (b) =>
                 b.id.toLowerCase().includes(q) ||
+                b.name.toLowerCase().includes(q) ||
                 b.province.toLowerCase().includes(q) ||
-                b.createdBy.toLowerCase().includes(q) ||
-                b.name.toLowerCase().includes(q)
+                b.createdBy.toLowerCase().includes(q)
         );
     }, [batches, search]);
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
     const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-    // Reset to page 1 when search changes
-    useEffect(() => { setPage(1); }, [search]);
+    useEffect(() => {
+        setPage(1);
+    }, [search]);
 
-    // ── CREATE ────────────────────────────────────────────────────────────────
-    const handleCreate = () => {
-        if (!createForm.name.trim() || !createForm.province.trim()) {
-            toast.error("Batch name and province are required.");
-            return;
-        }
-        const id = generateId(createForm.province, createForm.date);
-        const newBatch: Batch = {
-            id,
-            name: createForm.name.trim(),
-            province: createForm.province.trim(),
-            date: createForm.date,
-            booklets: Number(createForm.booklets) || 4,
-            revenue: "₱0",
-            createdAt: new Date().toISOString(),
-            createdBy: createForm.createdBy.trim() || "Manager",
-            status: "pending",
-        };
-        setBatches((prev) => [newBatch, ...prev]);
-        setShowCreate(false);
-        setCreateForm(emptyForm());
-        toast.success(`Batch "${newBatch.name}" created!`);
-    };
-
-    // ── EDIT (open dialog) ────────────────────────────────────────────────────
-    const openEdit = (batch: Batch) => {
+    const openEdit = async (batch: Batch) => {
         setEditTarget(batch);
+        let details = getBatchDetails(batch.id);
+        if (!details && databaseEnabled()) {
+            try {
+                details = await getBatchDetailFromDatabase(batch.id);
+                if (details) setLocalBatchDetails(batch.id, details);
+            } catch (error) {
+                console.error(error);
+            }
+        }
         setEditForm({
             name: batch.name,
             province: batch.province,
+            date: formatDisplayDate(batch.date),
+            totalPayout: String((batch.total_payout || 0).toFixed(2)),
             booklets: batch.booklets,
             createdBy: batch.createdBy,
+            serialRanges: deriveSerialRanges(batch),
         });
     };
 
-    // ── UPDATE ────────────────────────────────────────────────────────────────
-    const handleUpdate = () => {
+    const handleUpdate = async () => {
         if (!editTarget) return;
         if (!editForm.name.trim() || !editForm.province.trim()) {
             toast.error("Batch name and province are required.");
             return;
         }
+
+        const nextDate = parseDisplayDate(editForm.date);
+        const nextPayout = Number(editForm.totalPayout) || 0;
+
+        try {
+            if (databaseEnabled()) {
+                await updateBatchInDatabase(editTarget.id, {
+                    name: editForm.name.trim(),
+                    province: editForm.province.trim(),
+                    date: nextDate,
+                    totalPayout: nextPayout,
+                });
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error("Database update failed.");
+            return;
+        }
+
         setBatches((prev) =>
-            prev.map((b) =>
-                b.id === editTarget.id
+            prev.map((batch) =>
+                batch.id === editTarget.id
                     ? {
-                        ...b,
+                        ...batch,
                         name: editForm.name.trim(),
                         province: editForm.province.trim(),
-                        booklets: Number(editForm.booklets) || b.booklets,
-                        createdBy: editForm.createdBy.trim() || b.createdBy,
+                        date: nextDate,
+                        total_payout: nextPayout,
+                        booklets: Number(editForm.booklets) || batch.booklets,
+                        createdBy: editForm.createdBy.trim() || batch.createdBy,
                     }
-                    : b
+                    : batch
             )
         );
-        toast.success("Batch updated!");
+
+        const details = getBatchDetails(editTarget.id);
+        if (details) {
+            details.name = editForm.name.trim();
+            details.province = editForm.province.trim();
+            details.date = nextDate;
+            details.totalPayout = nextPayout;
+            details.booklets?.forEach((booklet: any, index: number) => {
+                const range = editForm.serialRanges[index];
+                if (!range) return;
+
+                booklet.serialStart = range.start;
+                booklet.serialEnd = range.end;
+
+                let nextSerial = Number(range.start);
+                const width = range.start.length;
+                if (!Number.isFinite(nextSerial)) return;
+
+                booklet.sheets?.forEach((sheet: any) => {
+                    sheet.tickets?.forEach((ticket: any) => {
+                        ticket.serialNumber = String(nextSerial).padStart(width, "0");
+                        nextSerial += 1;
+                    });
+                });
+            });
+            setLocalBatchDetails(editTarget.id, details);
+        }
+
+        toast.success("Batch updated.");
         setEditTarget(null);
     };
 
-    // ── DELETE ────────────────────────────────────────────────────────────────
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (!deleteTarget) return;
-        // Also remove stored batch data
+        try {
+            if (databaseEnabled()) {
+                await deleteBatchFromDatabase(deleteTarget.id);
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error("Database delete failed.");
+            return;
+        }
+
         localStorage.removeItem(`batch_data_${deleteTarget.id}`);
-        setBatches((prev) => prev.filter((b) => b.id !== deleteTarget.id));
+        setBatches((prev) => prev.filter((batch) => batch.id !== deleteTarget.id));
         toast.success(`Batch "${deleteTarget.name}" deleted.`);
         setDeleteTarget(null);
     };
 
-    // ── Pagination helpers ────────────────────────────────────────────────────
     const pageNumbers = () => {
         const pages: (number | "...")[] = [];
         if (totalPages <= 5) {
@@ -229,132 +345,134 @@ export const BatchesPage = () => {
         return pages;
     };
 
-    // ─────────────────────────────────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-slate-50 py-10 px-4 font-sans text-slate-800">
-            <div className="max-w-6xl mx-auto">
-
-                {/* ── Header ─────────────────────────────────────────────── */}
-                <div className="flex items-center justify-between mb-8">
+        <div className="min-h-screen bg-[#f6f7f9] px-6 py-7 text-slate-900">
+            <div className="mx-auto max-w-[1180px]">
+                <header className="mb-6 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                        <Button variant="outline" size="sm" onClick={() => navigate('/')} className="h-8 gap-1 font-bold text-xs">
-                            <ArrowLeft className="h-3 w-3" /> BACK
-                        </Button>
-                        <h1 className="text-3xl font-black text-yellow-400 uppercase tracking-tight">Saved Batches</h1>
-                    </div>
-
-                    <div className="flex items-center gap-2">
                         <Button
-                            onClick={() => setShowCreate(true)}
-                            className="h-10 gap-2 font-bold text-xs uppercase bg-yellow-400 hover:bg-yellow-500 text-yellow-900 shadow"
+                            variant="outline"
+                            className="h-9 rounded-md border-slate-200 bg-white px-4 text-[11px] font-black uppercase text-slate-900 shadow-sm"
+                            onClick={() => navigate("/")}
                         >
-                            <Plus className="h-4 w-4" /> New Batch
+                            <ArrowLeft className="h-4 w-4" />
+                            Back
                         </Button>
-
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="gap-2 font-bold text-xs uppercase h-10 border-slate-200">
-                                    <FileSpreadsheet className="h-4 w-4" /> Monthly Exports <ChevronDown className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-56 font-bold uppercase text-xs">
-                                <DropdownMenuItem className="gap-2 cursor-pointer py-3"><FileText className="h-4 w-4" /> Monthly Alpha List</DropdownMenuItem>
-                                <DropdownMenuItem className="gap-2 cursor-pointer py-3"><LayoutTemplate className="h-4 w-4" /> Matrix Format</DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        <h1 className="text-3xl font-black uppercase leading-none tracking-tight text-[#f7b500]">
+                            Saved Batches
+                        </h1>
                     </div>
-                </div>
 
-                {/* ── Search ─────────────────────────────────────────────── */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="outline"
+                                className="h-9 rounded-md border-slate-200 bg-white px-4 text-[11px] font-black uppercase text-slate-900 shadow-sm"
+                            >
+                                <FileSpreadsheet className="h-4 w-4" />
+                                Monthly Exports
+                                <ChevronDown className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56 rounded-md border-slate-200 bg-white p-1.5 shadow-lg">
+                            <DropdownMenuItem className="gap-2 rounded-sm py-3 text-[11px] font-black uppercase">
+                                <FileText className="h-4 w-4" />
+                                Monthly Alpha List
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="gap-2 rounded-sm py-3 text-[11px] font-black uppercase">
+                                <LayoutTemplate className="h-4 w-4" />
+                                Matrix Format
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </header>
+
                 <div className="relative mb-6">
-                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                     <Input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="SEARCH BY BATCH NAME, PROVINCE, OR CREATOR..."
-                        className="pl-12 h-12 bg-white border-slate-200 text-xs font-bold font-sans uppercase shadow-sm"
+                        className="h-9 rounded-md border-slate-200 bg-white pl-10 text-[11px] font-black uppercase shadow-sm placeholder:text-slate-500"
                     />
                 </div>
 
-                <p className="text-sm text-slate-500 mb-6">
+                <p className="mb-6 text-sm text-slate-600">
                     {filtered.length === 0
                         ? "No batches found."
-                        : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, filtered.length)} of ${filtered.length} batch${filtered.length !== 1 ? "es" : ""}`}
+                        : `Showing ${(page - 1) * PAGE_SIZE + 1}-${Math.min(page * PAGE_SIZE, filtered.length)} of ${filtered.length} batches`}
                 </p>
 
-                {/* ── Grid ───────────────────────────────────────────────── */}
                 {paginated.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-24 text-slate-400 gap-4">
-                        <FileSpreadsheet className="h-12 w-12 opacity-30" />
-                        <p className="text-sm font-bold uppercase">
-                            {batches.length === 0 ? "No batches yet. Create your first batch!" : "No results match your search."}
+                    <div className="flex flex-col items-center justify-center gap-4 py-24 text-slate-400">
+                        <FileSpreadsheet className="h-12 w-12 opacity-40" />
+                        <p className="text-sm font-black uppercase">
+                            {batches.length === 0 ? "No batches yet." : "No results match your search."}
                         </p>
-                        {batches.length === 0 && (
-                            <Button onClick={() => setShowCreate(true)} className="mt-2 gap-2 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold text-xs uppercase">
-                                <Plus className="h-4 w-4" /> Create Batch
-                            </Button>
-                        )}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
                         {paginated.map((batch) => (
-                            <Card key={batch.id} className="bg-white border text-slate-800 border-slate-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                                <CardContent className="p-6">
-                                    <div className="flex items-start justify-between mb-1">
-                                        <h3 className="font-black text-yellow-500 uppercase tracking-tight text-sm leading-tight">{batch.name || batch.id}</h3>
-                                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase flex items-center gap-1 ${statusStyle[batch.status]}`}>
-                                            <div className={`h-2 w-2 rounded-full ${statusDot[batch.status]}`} />
-                                            {batch.status}
+                            <Card key={batch.id} className="rounded-lg border border-slate-200 bg-white shadow-sm">
+                                <CardContent className="p-5">
+                                    <div className="mb-2 flex items-start justify-between gap-3">
+                                        <h2 className="font-mono text-sm font-black uppercase tracking-tight text-[#f7b500]">
+                                            {batch.id}
+                                        </h2>
+                                        <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold ${statusStyle[batch.status]}`}>
+                                            <CheckCircle2 className="h-3.5 w-3.5" />
+                                            {statusLabel[batch.status]}
                                         </span>
                                     </div>
-                                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1 font-mono">{batch.id}</p>
-                                    <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-6">{batch.province}</p>
 
-                                    <div className="grid grid-cols-2 gap-4 mb-6">
-                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Booklets</div>
-                                            <div className="text-lg font-black">{batch.booklets}</div>
-                                        </div>
-                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Revenue</div>
-                                            <div className="text-lg font-black">
-                                                {batch.total_revenue != null
-                                                    ? `₱${batch.total_revenue.toLocaleString()}`
-                                                    : batch.revenue}
-                                            </div>
-                                        </div>
+                                    <p className="mb-5 truncate text-sm font-medium uppercase tracking-wide text-slate-600">
+                                        {batch.province || batch.name}
+                                    </p>
+
+                                    <div className="mb-5 grid grid-cols-2 gap-3">
+                                        <Metric label="Booklets" value={batch.booklets.toLocaleString()} />
+                                        <Metric
+                                            label="Revenue"
+                                            value={
+                                                batch.total_revenue != null
+                                                    ? `PHP ${batch.total_revenue.toLocaleString()}`
+                                                    : batch.revenue
+                                            }
+                                        />
                                     </div>
 
-                                    <div className="space-y-1.5 mb-6">
-                                        <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                                            <Calendar className="h-3.5 w-3.5 text-yellow-500" /> Batch Date: {batch.date}
+                                    <div className="mb-5 space-y-2">
+                                        <div className="flex items-center gap-2 text-[12px] font-black text-slate-900">
+                                            <Calendar className="h-3.5 w-3.5 text-[#f7b500]" />
+                                            Batch Date: {batch.date}
                                         </div>
-                                        <div className="flex items-center gap-2 text-[10px] text-slate-500 font-medium">
-                                            <Calendar className="h-3 w-3 text-slate-400" /> Created: {formatDate(batch.createdAt)}
+                                        <div className="flex items-center gap-2 text-[12px] text-slate-500">
+                                            <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                                            Created: {formatDateTime(batch.createdAt)}
                                         </div>
-                                        <div className="text-[10px] text-slate-500 font-medium pl-5">
-                                            Created by: {batch.createdBy}
-                                        </div>
+                                        <p className="pl-5 text-[12px] text-slate-500">Created by: {batch.createdBy}</p>
                                     </div>
 
-                                    <div className="flex items-center gap-3">
+                                    <div className="grid grid-cols-[1fr_1fr_38px] gap-2">
                                         <Button
                                             variant="outline"
-                                            className="flex-1 h-10 gap-2 font-bold text-xs uppercase"
+                                            className="h-8 rounded-md border-slate-200 bg-white text-sm font-bold text-slate-900"
                                             onClick={() => navigate(`/batch/${batch.id}`)}
                                         >
-                                            <Eye className="h-4 w-4" /> View
+                                            <Eye className="h-4 w-4" />
+                                            View
                                         </Button>
                                         <Button
                                             variant="outline"
-                                            className="flex-1 h-10 gap-2 font-bold text-xs uppercase"
+                                            className="h-8 rounded-md border-slate-200 bg-white text-sm font-bold text-slate-900"
                                             onClick={() => openEdit(batch)}
                                         >
-                                            <Edit className="h-4 w-4" /> Edit
+                                            <Edit className="h-4 w-4" />
+                                            Edit
                                         </Button>
                                         <Button
                                             variant="destructive"
-                                            className="h-10 w-10 p-0 bg-red-500 hover:bg-red-600"
+                                            className="h-8 rounded-md bg-red-500 p-0 hover:bg-red-600"
                                             onClick={() => setDeleteTarget(batch)}
                                         >
                                             <Trash2 className="h-4 w-4" />
@@ -366,178 +484,170 @@ export const BatchesPage = () => {
                     </div>
                 )}
 
-                {/* ── Pagination ─────────────────────────────────────────── */}
                 {filtered.length > PAGE_SIZE && (
-                    <div className="flex justify-center items-center gap-2">
-                        <Button
-                            variant="ghost"
-                            className="h-10 gap-1 text-xs font-bold uppercase text-slate-500 hover:text-slate-800"
-                            disabled={page === 1}
-                            onClick={() => setPage((p) => Math.max(1, p - 1))}
-                        >
-                            <ChevronLeft className="h-4 w-4" /> Previous
+                    <div className="mt-8 flex items-center justify-center gap-2">
+                        <Button variant="ghost" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                            <ChevronLeft className="h-4 w-4" />
+                            Previous
                         </Button>
-
                         {pageNumbers().map((p, i) =>
                             p === "..." ? (
-                                <span key={`ellipsis-${i}`} className="text-slate-400 px-2 font-bold">...</span>
+                                <span key={`ellipsis-${i}`} className="px-2 text-slate-400">...</span>
                             ) : (
                                 <Button
                                     key={p}
                                     variant={page === p ? "default" : "ghost"}
-                                    className={`h-10 w-10 p-0 font-bold ${page === p ? "bg-yellow-400 hover:bg-yellow-500 text-yellow-900" : "text-slate-600 hover:bg-slate-100"}`}
-                                    onClick={() => setPage(p as number)}
+                                    className={`h-9 w-9 p-0 font-bold ${page === p ? "bg-[#f7b500] text-white hover:bg-[#e6a600]" : ""}`}
+                                    onClick={() => setPage(p)}
                                 >
                                     {p}
                                 </Button>
                             )
                         )}
-
-                        <Button
-                            variant="ghost"
-                            className="h-10 gap-1 text-xs font-bold uppercase text-slate-800 hover:bg-slate-100"
-                            disabled={page === totalPages}
-                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                        >
-                            Next <ChevronRight className="h-4 w-4" />
+                        <Button variant="ghost" disabled={page === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+                            Next
+                            <ChevronRight className="h-4 w-4" />
                         </Button>
                     </div>
                 )}
             </div>
 
-            {/* ════ CREATE DIALOG ══════════════════════════════════════════════ */}
-            <Dialog open={showCreate} onOpenChange={setShowCreate}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="text-lg font-black uppercase tracking-tight">Create New Batch</DialogTitle>
-                        <DialogDescription className="text-xs text-slate-500">
-                            Fill in the details below to create a new lottery batch.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="space-y-4 py-2">
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-600">Batch Name *</Label>
-                            <Input
-                                placeholder="e.g. Cotabato City – Feb Draw"
-                                value={createForm.name}
-                                onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-600">Province / Area *</Label>
-                            <Input
-                                placeholder="e.g. Cotabato City"
-                                value={createForm.province}
-                                onChange={(e) => setCreateForm({ ...createForm, province: e.target.value })}
-                            />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                                <Label className="text-xs font-bold uppercase tracking-wider text-slate-600">Batch Date</Label>
-                                <Input
-                                    type="date"
-                                    value={createForm.date}
-                                    onChange={(e) => setCreateForm({ ...createForm, date: e.target.value })}
-                                />
-                            </div>
-                            <div className="space-y-1.5">
-                                <Label className="text-xs font-bold uppercase tracking-wider text-slate-600">Booklets</Label>
-                                <Input
-                                    type="number"
-                                    min={1}
-                                    value={createForm.booklets}
-                                    onChange={(e) => setCreateForm({ ...createForm, booklets: parseInt(e.target.value) || 1 })}
-                                />
-                            </div>
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-600">Created By</Label>
-                            <Input
-                                placeholder="e.g. Cotabato Manager"
-                                value={createForm.createdBy}
-                                onChange={(e) => setCreateForm({ ...createForm, createdBy: e.target.value })}
-                            />
-                        </div>
-                    </div>
-
-                    <DialogFooter className="gap-2 pt-2">
-                        <Button variant="outline" onClick={() => { setShowCreate(false); setCreateForm(emptyForm()); }}>
-                            Cancel
-                        </Button>
-                        <Button onClick={handleCreate} className="gap-2 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold">
-                            <Plus className="h-4 w-4" /> Create Batch
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* ════ EDIT DIALOG ════════════════════════════════════════════════ */}
             <Dialog open={!!editTarget} onOpenChange={(open) => { if (!open) setEditTarget(null); }}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="max-h-[92vh] overflow-y-auto rounded-lg border border-slate-200 bg-white p-0 text-slate-950 shadow-2xl sm:max-w-[760px] [&>button]:hidden">
                     <DialogHeader>
-                        <DialogTitle className="text-lg font-black uppercase tracking-tight">Edit Batch</DialogTitle>
-                        <DialogDescription className="text-xs text-slate-500">
-                            Update the batch details below.
+                        <DialogTitle className="sr-only">Edit Batch</DialogTitle>
+                        <DialogDescription className="px-3 pt-3 text-sm text-slate-600">
+                            Make changes to your batch details
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-4 py-2">
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-600">Batch Name *</Label>
-                            <Input
-                                value={editForm.name}
-                                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-bold uppercase tracking-wider text-slate-600">Province / Area *</Label>
-                            <Input
-                                value={editForm.province}
-                                onChange={(e) => setEditForm({ ...editForm, province: e.target.value })}
-                            />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                                <Label className="text-xs font-bold uppercase tracking-wider text-slate-600">Booklets</Label>
-                                <Input
-                                    type="number"
-                                    min={1}
-                                    value={editForm.booklets}
-                                    onChange={(e) => setEditForm({ ...editForm, booklets: parseInt(e.target.value) || 1 })}
-                                />
+                    <div className="px-3 pb-3">
+                        <div className="rounded-lg border border-slate-200 bg-white p-5">
+                            <div className="space-y-4">
+                                <EditField label="Batch Name">
+                                    <Input
+                                        value={editForm.name}
+                                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                        className="h-9 border-slate-200 bg-white font-mono text-sm text-slate-950"
+                                    />
+                                </EditField>
+
+                                <EditField
+                                    label="Batch Date (for advance generation)"
+                                    helper="Edit the date this batch represents. Created date remains unchanged for record keeping."
+                                >
+                                    <div className="relative">
+                                        <Input
+                                            value={editForm.date}
+                                            onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                                            className="h-9 border-slate-200 bg-white pr-10 font-mono text-sm text-slate-950"
+                                        />
+                                        <Calendar className="absolute left-[102px] top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-700" />
+                                    </div>
+                                </EditField>
+
+                                <EditField label="Total Payout" helper={`Current: ${formatCurrency(editTarget?.total_payout || 0)}`}>
+                                    <Input
+                                        value={editForm.totalPayout}
+                                        onChange={(e) => setEditForm({ ...editForm, totalPayout: e.target.value })}
+                                        className="h-9 border-slate-200 bg-white font-mono text-sm text-slate-950"
+                                    />
+                                </EditField>
                             </div>
-                            <div className="space-y-1.5">
-                                <Label className="text-xs font-bold uppercase tracking-wider text-slate-600">Created By</Label>
-                                <Input
-                                    value={editForm.createdBy}
-                                    onChange={(e) => setEditForm({ ...editForm, createdBy: e.target.value })}
-                                />
+
+                            <div className="mt-7 grid grid-cols-2 gap-x-20 gap-y-5">
+                                <SummaryItem label="Province" value={editForm.province} />
+                                <SummaryItem label="Total Booklets" value={String(editForm.booklets)} />
+                                <SummaryItem label="Total Revenue" value={formatCurrency(editTarget?.total_revenue, editTarget?.revenue || "PHP 0")} />
+                                <SummaryItem label="Status" value={editTarget ? statusLabel[editTarget.status] : ""} />
                             </div>
+
+                            <div className="mt-7 border-t border-slate-200 pt-6">
+                                <h3 className="text-sm font-black uppercase tracking-tight">Booklet Serial Number Ranges</h3>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    Edit the serial number ranges for each booklet in this batch ({editForm.serialRanges.length || editForm.booklets} booklets)
+                                </p>
+
+                                <div className="mt-4 space-y-3">
+                                    {editForm.serialRanges.map((range, index) => (
+                                        <div key={range.bookletNumber} className="grid grid-cols-[100px_1fr_1fr_100px] items-end gap-3 rounded-lg bg-slate-50 px-3 py-3">
+                                            <div className="pb-2 text-sm text-slate-600">Booklet {range.bookletNumber}</div>
+                                            <SerialField
+                                                label="Start"
+                                                value={range.start}
+                                                onChange={(value) => {
+                                                    const next = [...editForm.serialRanges];
+                                                    const start = Number(value);
+                                                    next[index] = {
+                                                        ...next[index],
+                                                        start: value,
+                                                        end: Number.isFinite(start) ? String(start + next[index].count - 1) : next[index].end,
+                                                    };
+                                                    setEditForm({ ...editForm, serialRanges: next });
+                                                }}
+                                            />
+                                            <SerialField
+                                                label="End"
+                                                value={range.end}
+                                                onChange={(value) => {
+                                                    const next = [...editForm.serialRanges];
+                                                    const end = Number(value);
+                                                    const start = Number(next[index].start);
+                                                    next[index] = {
+                                                        ...next[index],
+                                                        end: value,
+                                                        count: Number.isFinite(start) && Number.isFinite(end) ? Math.max(0, end - start + 1) : next[index].count,
+                                                    };
+                                                    setEditForm({ ...editForm, serialRanges: next });
+                                                }}
+                                            />
+                                            <SerialField
+                                                label="Count"
+                                                value={String(range.count)}
+                                                onChange={(value) => {
+                                                    const next = [...editForm.serialRanges];
+                                                    const count = Number(value) || 0;
+                                                    const start = Number(next[index].start);
+                                                    next[index] = {
+                                                        ...next[index],
+                                                        count,
+                                                        end: Number.isFinite(start) ? String(start + count - 1) : next[index].end,
+                                                    };
+                                                    setEditForm({ ...editForm, serialRanges: next });
+                                                }}
+                                                className="border-green-500 bg-green-50 text-green-700"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <DialogFooter className="mt-6 gap-3 border-t border-slate-100 pt-4 sm:justify-start">
+                                <Button onClick={handleUpdate} className="h-9 gap-2 rounded-md bg-[#f7b500] px-5 font-medium text-slate-950 hover:bg-[#e6a600]">
+                                    <Save className="h-4 w-4" />
+                                    Save Changes
+                                </Button>
+                                <Button variant="outline" className="h-9 rounded-md border-slate-200 bg-white px-5 text-slate-950" onClick={() => setEditTarget(null)}>
+                                    Cancel
+                                </Button>
+                            </DialogFooter>
                         </div>
                     </div>
-
-                    <DialogFooter className="gap-2 pt-2">
-                        <Button variant="outline" onClick={() => setEditTarget(null)}>Cancel</Button>
-                        <Button onClick={handleUpdate} className="gap-2 bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold">
-                            <Edit className="h-4 w-4" /> Save Changes
-                        </Button>
-                    </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* ════ DELETE CONFIRMATION DIALOG ═════════════════════════════════ */}
             <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
                 <DialogContent className="sm:max-w-sm">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-red-600 font-black uppercase">
-                            <AlertTriangle className="h-5 w-5" /> Delete Batch
+                            <AlertTriangle className="h-5 w-5" />
+                            Delete Batch
                         </DialogTitle>
                         <DialogDescription className="sr-only">
                             Confirm deletion of this batch. This action cannot be undone.
                         </DialogDescription>
                     </DialogHeader>
-                    <p className="text-sm text-slate-600 py-2">
+                    <p className="py-2 text-sm text-slate-600">
                         Are you sure you want to delete{" "}
                         <span className="font-bold text-slate-800">"{deleteTarget?.name || deleteTarget?.id}"</span>?
                         This action cannot be undone and all associated data will be permanently removed.
@@ -545,7 +655,8 @@ export const BatchesPage = () => {
                     <DialogFooter className="gap-2">
                         <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
                         <Button variant="destructive" onClick={handleDelete} className="gap-2 bg-red-500 hover:bg-red-600">
-                            <Trash2 className="h-4 w-4" /> Delete
+                            <Trash2 className="h-4 w-4" />
+                            Delete
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -553,5 +664,48 @@ export const BatchesPage = () => {
         </div>
     );
 };
+
+const Metric = ({ label, value }: { label: string; value: string }) => (
+    <div className="rounded-lg bg-slate-50 px-3 py-4">
+        <div className="mb-1 text-[10px] text-slate-500">{label}</div>
+        <div className="truncate text-base font-black text-slate-950">{value}</div>
+    </div>
+);
+
+const EditField = ({ label, helper, children }: { label: string; helper?: string; children: ReactNode }) => (
+    <div className="space-y-2">
+        <Label className="text-sm font-medium text-slate-950">{label}</Label>
+        {children}
+        {helper && <p className="text-xs text-slate-500">{helper}</p>}
+    </div>
+);
+
+const SummaryItem = ({ label, value }: { label: string; value: string }) => (
+    <div>
+        <div className="text-sm text-slate-500">{label}</div>
+        <div className="mt-1 font-mono text-base text-slate-950">{value}</div>
+    </div>
+);
+
+const SerialField = ({
+    label,
+    value,
+    onChange,
+    className = "",
+}: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    className?: string;
+}) => (
+    <div className="space-y-1">
+        <Label className="text-xs text-slate-500">{label}</Label>
+        <Input
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className={`h-8 border-slate-200 bg-white font-mono text-sm text-slate-950 ${className}`}
+        />
+    </div>
+);
 
 export default BatchesPage;

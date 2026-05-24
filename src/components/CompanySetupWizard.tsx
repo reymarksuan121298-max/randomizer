@@ -59,7 +59,7 @@ export const CompanySetupWizard = () => {
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <Label>System Code (Short)</Label>
-                            <Input placeholder="e.g. ADS" value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} />
+                            <Input placeholder="Company code" value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} />
                         </div>
                         <div className="space-y-2">
                             <Label>Contact Person / Email</Label>

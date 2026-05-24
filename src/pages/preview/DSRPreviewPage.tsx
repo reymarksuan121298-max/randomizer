@@ -25,7 +25,7 @@ export const DSRPreviewPage = () => {
         if (!batchData) return;
         setIsExporting(true);
         try {
-            const workbook = await prepareDSRWorkbook(batchData, {}, { name: "ADS" });
+            const workbook = await prepareDSRWorkbook(batchData, {}, { name: batchData.name || batchData.province });
             const buffer = await workbook.xlsx.writeBuffer();
             const data = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
             saveAs(data, `DSR_${batchData.name}.xlsx`);

@@ -3,35 +3,28 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Building2, Search, Trash2, Edit } from "lucide-react";
-
-interface Company {
-    id: string;
-    name: string;
-    code: string;
-    address: string;
-    contact: string;
-}
+import { databaseEnabled, listCompaniesFromDatabase, type CompanyRecord } from "@/lib/database";
+import { toast } from "sonner";
 
 const CompaniesPage = () => {
-    const [companies, setCompanies] = useState<Company[]>([]);
+    const [companies, setCompanies] = useState<CompanyRecord[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const saved = localStorage.getItem('companies');
-        if (saved) {
-            setCompanies(JSON.parse(saved));
-        } else {
-            // Default demo company
-            const defaultComp = [{
-                id: '1',
-                name: 'Alpha Digital Solutions',
-                code: 'ADS',
-                address: 'Manila, Philippines',
-                contact: 'admin@ads.ph'
-            }];
-            setCompanies(defaultComp);
-            localStorage.setItem('companies', JSON.stringify(defaultComp));
+        if (!databaseEnabled()) {
+            setCompanies([]);
+            setIsLoading(false);
+            return;
         }
+
+        listCompaniesFromDatabase()
+            .then(setCompanies)
+            .catch((error) => {
+                console.error(error);
+                toast.error("Could not load companies from database.");
+            })
+            .finally(() => setIsLoading(false));
     }, []);
 
     const filtered = companies.filter(c =>
@@ -62,6 +55,12 @@ const CompaniesPage = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {isLoading && <p className="text-sm text-muted-foreground">Loading companies...</p>}
+                {!isLoading && filtered.length === 0 && (
+                    <div className="col-span-full rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+                        No companies found.
+                    </div>
+                )}
                 {filtered.map((company) => (
                     <Card key={company.id} className="hover:shadow-md transition-shadow">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0">

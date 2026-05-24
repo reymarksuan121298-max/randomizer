@@ -9,7 +9,7 @@ export async function prepareSODWorkbook(
     const sheet = workbook.addWorksheet('Statement of Draw');
 
     sheet.addRow(['STATEMENT OF DRAW']);
-    sheet.addRow(['Company:', companyData?.name || 'ADS']);
+    sheet.addRow(['Company:', companyData?.name || batchData.name || 'Not configured']);
     sheet.addRow(['Date:', new Date(batchData.date).toLocaleDateString()]);
     sheet.addRow([]);
 
