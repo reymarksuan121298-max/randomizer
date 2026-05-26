@@ -21,13 +21,6 @@ export default defineConfig({
             if (id.includes('lucide-react')) {
               return 'vendor-lucide';
             }
-            if (id.includes('react') || id.includes('scheduler') || id.includes('react-dom') || id.includes('react-router')) {
-              return 'vendor-react';
-            }
-            if (id.includes('@supabase') || id.includes('websocket')) {
-              return 'vendor-supabase';
-            }
-            return 'vendor';
           }
         }
       }
