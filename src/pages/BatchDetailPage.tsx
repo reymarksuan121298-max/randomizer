@@ -43,6 +43,7 @@ export const BatchDetailPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [batchData, setBatchData] = useState<BookletBatch | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
     const [selectedBookletIdx, setSelectedBookletIdx] = useState(0);
 
     useEffect(() => {
@@ -50,6 +51,7 @@ export const BatchDetailPage = () => {
 
         const load = async () => {
             if (!id) return;
+            setIsLoading(true);
 
             if (databaseEnabled()) {
                 try {
@@ -57,6 +59,7 @@ export const BatchDetailPage = () => {
                     if (dbBatch && !cancelled) {
                         setBatchData(dbBatch);
                         localStorage.setItem(`batch_data_${id}`, JSON.stringify(dbBatch));
+                        if (!cancelled) setIsLoading(false);
                         return;
                     }
                 } catch (error) {
@@ -69,6 +72,7 @@ export const BatchDetailPage = () => {
             if (saved && !cancelled) {
                 setBatchData(JSON.parse(saved));
             }
+            if (!cancelled) setIsLoading(false);
         };
 
         load();
@@ -224,7 +228,75 @@ export const BatchDetailPage = () => {
         }
     };
 
-    if (!batchData || !analysis) {
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-[#f7f8fa] px-6 py-5">
+                <div className="mx-auto max-w-[1180px] space-y-6">
+                    {/* Header skeleton */}
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-4">
+                            <div className="h-8 w-32 animate-pulse rounded-md bg-slate-200" />
+                            <div className="space-y-2">
+                                <div className="h-5 w-48 animate-pulse rounded bg-slate-200" />
+                                <div className="h-3 w-64 animate-pulse rounded bg-slate-200" />
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <div className="h-9 w-24 animate-pulse rounded-md bg-slate-200" />
+                            <div className="h-8 w-24 animate-pulse rounded-full bg-slate-200" />
+                        </div>
+                    </div>
+
+                    {/* Stats card skeleton */}
+                    <div className="rounded-lg border-2 border-slate-200 bg-white p-5">
+                        <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-5">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                                <div key={i} className="rounded-lg bg-slate-50 px-4 py-4 space-y-2">
+                                    <div className="h-2.5 w-16 animate-pulse rounded bg-slate-200" />
+                                    <div className="h-5 w-24 animate-pulse rounded bg-slate-200" />
+                                </div>
+                            ))}
+                        </div>
+                        <div className="mt-6 grid grid-cols-3 gap-6 border-t border-slate-200 pt-4">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <div key={i} className="space-y-1">
+                                    <div className="h-2.5 w-20 animate-pulse rounded bg-slate-200" />
+                                    <div className="h-4 w-28 animate-pulse rounded bg-slate-200" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Draw summary skeleton */}
+                    <div className="rounded-lg border-2 border-slate-200 bg-white p-5">
+                        <div className="mb-4 h-4 w-40 animate-pulse rounded bg-slate-200" />
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <div key={i} className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
+                                    <div className="h-3 w-20 animate-pulse rounded bg-slate-200" />
+                                    <div className="h-3 w-full animate-pulse rounded bg-slate-200" />
+                                    <div className="h-3 w-3/4 animate-pulse rounded bg-slate-200" />
+                                    <div className="h-3 w-2/3 animate-pulse rounded bg-slate-200" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Sheet skeleton */}
+                    <div className="rounded-lg border border-slate-200 bg-white p-6">
+                        <div className="h-8 w-full animate-pulse rounded bg-slate-100" />
+                        <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+                            {Array.from({ length: 8 }).map((_, i) => (
+                                <div key={i} className="h-20 animate-pulse rounded-lg bg-slate-100" />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (!batchData) {
         return (
             <div className="mx-auto max-w-xl py-20 text-center">
                 <h2 className="mb-4 text-2xl font-bold">Batch data not found or not yet generated</h2>
@@ -272,13 +344,13 @@ export const BatchDetailPage = () => {
                 <section className="rounded-lg border-2 border-[#f7b500] bg-white p-5">
                     <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-5">
                         <Metric label="Total Booklets" value={String(batchData.booklets.length)} accent="text-[#f7b500]" accentBorder />
-                        <Metric label="Daily Revenue" value={formatMoney(analysis.totalRevenue)} />
+                        <Metric label="Daily Revenue" value={formatMoney(analysis?.totalRevenue ?? 0)} />
                         <Metric label="Grand Total Bets" value={formatMoney(batchData.grandTotalBets)} accent="text-[#f7b500]" />
-                        <Metric label="Total Payout" value={formatMoney(analysis.totalPayout)} danger />
-                        <Metric label="Prize Fund (33.9% of Daily Revenue)" value={formatMoney(analysis.prizeFund)} purple />
+                        <Metric label="Total Payout" value={formatMoney(analysis?.totalPayout ?? 0)} danger />
+                        <Metric label="Prize Fund (33.9% of Daily Revenue)" value={formatMoney(analysis?.prizeFund ?? 0)} purple />
                     </div>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
-                        <Metric label="Game Types" value={`${analysis.gameTypeCount} types`} />
+                        <Metric label="Game Types" value={`${analysis?.gameTypeCount ?? 0} types`} />
                     </div>
 
                     <div className="mt-6 grid grid-cols-3 gap-6 border-t border-slate-200 pt-4 text-xs">
@@ -293,7 +365,7 @@ export const BatchDetailPage = () => {
                             Winning Numbers
                         </h2>
                         <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-                            {analysis.winningNumbers.map((winner) => (
+                            {(analysis?.winningNumbers ?? []).map((winner) => (
                                 <div key={winner.label} className="rounded-lg bg-slate-50 px-4 py-3 text-center">
                                     <div className="truncate text-[10px] uppercase text-slate-500">{winner.label}</div>
                                     <div className="mt-1 font-mono text-xl font-black text-[#f7b500]">{winner.number}</div>
@@ -307,7 +379,7 @@ export const BatchDetailPage = () => {
                             <AlertTriangle className="h-4 w-4" />
                             Important:
                         </span>{" "}
-                        Please verify that the Grand Total Bets ({formatMoney(batchData.grandTotalBets)}) and Total Payout ({formatMoney(analysis.totalPayout)}) match your daily sales report.
+                        Please verify that the Grand Total Bets ({formatMoney(batchData.grandTotalBets)}) and Total Payout ({formatMoney(analysis?.totalPayout ?? 0)}) match your daily sales report.
                     </div>
                 </section>
 
@@ -316,7 +388,7 @@ export const BatchDetailPage = () => {
                         PER-DRAW SUMMARY ({selectedBookletIdx === -1 ? "ALL BOOKLETS" : `BOOKLET ${selectedBookletIdx + 1}`})
                     </h2>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                        {analysis.drawSummaries.map((draw) => (
+                        {(analysis?.drawSummaries ?? []).map((draw) => (
                             <DrawCard key={draw.time} draw={draw} />
                         ))}
                     </div>
@@ -354,11 +426,11 @@ export const BatchDetailPage = () => {
                             {batchData.province || batchData.name} {selectedBookletIdx !== -1 && `(${batchData.booklets[selectedBookletIdx].id || `Booklet ${selectedBookletIdx + 1}`})`}
                         </h3>
                         <div className="my-2 font-mono text-3xl font-black text-[#f7b500]">
-                            {formatMoney(analysis.totalRevenue)}
+                            {formatMoney(analysis?.totalRevenue ?? 0)}
                         </div>
                         <div className="flex items-center justify-center gap-4 text-xs font-medium text-slate-500">
-                            <span>Total Bets: {formatMoney(analysis.totalRevenue)}</span>
-                            <span className="font-bold text-[#f7b500]">Total Prizes: {formatMoney(analysis.totalPayout)}</span>
+                            <span>Total Bets: {formatMoney(analysis?.totalRevenue ?? 0)}</span>
+                            <span className="font-bold text-[#f7b500]">Total Prizes: {formatMoney(analysis?.totalPayout ?? 0)}</span>
                         </div>
                     </div>
                     <div className="w-32 text-right">
