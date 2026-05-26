@@ -17,6 +17,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCompanySettings, updateCompanySettings } from "@/lib/database";
+import defaultLeftLogo from "@/assets/left-logo.png";
+import defaultRightLogo from "@/assets/right-logo.png";
 
 export const CompanySettingsPage = () => {
     const navigate = useNavigate();
@@ -49,7 +51,10 @@ export const CompanySettingsPage = () => {
         agentCommissionPercentage: "",
         reportFrequency: "daily",
         municipalities: [],
-        logos: {},
+        logos: {
+            leftLogo: defaultLeftLogo,
+            rightLogo: defaultRightLogo
+        },
         reportDetails: {
             bookkeeper: { name: "", title: "", signature: null },
             manager: { name: "", title: "", signature: null }

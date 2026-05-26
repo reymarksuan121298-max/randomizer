@@ -14,6 +14,8 @@ import type { WinningNumbers } from "@/types/lottery";
 import type { Batch } from "@/types/lottery";
 import { databaseEnabled, saveGeneratedBatchToDatabase, getCompanySettings } from "@/lib/database";
 import { useAuth } from "@/contexts/AuthContext";
+import defaultLeftLogo from "@/assets/left-logo.png";
+import defaultRightLogo from "@/assets/right-logo.png";
 
 
 const BATCHES_KEY = "batches";
@@ -28,7 +30,10 @@ const Index = () => {
     const [betDistribution, setBetDistribution] = useState([80]);
     const [isGenerating, setIsGenerating] = useState(false);
     const [company, setCompany] = useState("");
-    const [logos, setLogos] = useState<Record<string, any>>({});
+    const [logos, setLogos] = useState<Record<string, any>>({
+        leftLogo: defaultLeftLogo,
+        rightLogo: defaultRightLogo
+    });
     const [companyCode, setCompanyCode] = useState("STL");
     const [dailyRevenue, setDailyRevenue] = useState(80000);
     const [totalPayout, setTotalPayout] = useState(50000);

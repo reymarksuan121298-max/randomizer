@@ -1,6 +1,8 @@
 import { gameTypes as defaultGameTypes } from "@/data/gameTypes";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import type { BookletBatch, GameType, NumberBet, Batch } from "@/types/lottery";
+import defaultLeftLogo from "../assets/left-logo.png";
+import defaultRightLogo from "../assets/right-logo.png";
 
 type DbGameType = { id: number; code: string };
 type DbBooklet = { id: number; booklet_number: number };
@@ -640,7 +642,10 @@ export const getCompanySettings = async (companyId: number) => {
         agentCommissionPercentage: settings?.agent_commission_percentage?.toString() || "",
         reportFrequency: settings?.report_frequency || "daily",
         municipalities: Array.isArray(settings?.municipalities) ? settings.municipalities : [],
-        logos: settings?.logos || {},
+        logos: {
+            leftLogo: settings?.logos?.leftLogo || settings?.logos?.companyLogo || defaultLeftLogo,
+            rightLogo: settings?.logos?.rightLogo || settings?.logos?.stlLogo || defaultRightLogo,
+        },
         reportDetails: settings?.report_details || {
             bookkeeper: { name: "", title: "", signature: null },
             manager: { name: "", title: "", signature: null }
@@ -696,7 +701,12 @@ export const updateCompanySettings = async (
 };
 
 export const getDefaultLogosFromDatabase = async (): Promise<{ leftLogo?: string | null; rightLogo?: string | null }> => {
-    if (!databaseEnabled()) return {};
+    if (!databaseEnabled()) {
+        return {
+            leftLogo: defaultLeftLogo,
+            rightLogo: defaultRightLogo
+        };
+    }
     try {
         const { data, error } = await supabase
             .from("company_settings")
@@ -704,13 +714,21 @@ export const getDefaultLogosFromDatabase = async (): Promise<{ leftLogo?: string
             .limit(1)
             .maybeSingle();
 
-        if (error || !data || !data.logos) return {};
+        if (error || !data || !data.logos) {
+            return {
+                leftLogo: defaultLeftLogo,
+                rightLogo: defaultRightLogo
+            };
+        }
         return {
-            leftLogo: data.logos.leftLogo || data.logos.companyLogo || null,
-            rightLogo: data.logos.rightLogo || data.logos.stlLogo || null
+            leftLogo: data.logos.leftLogo || data.logos.companyLogo || defaultLeftLogo,
+            rightLogo: data.logos.rightLogo || data.logos.stlLogo || defaultRightLogo
         };
     } catch (error) {
         console.error("Failed to load default logos:", error);
-        return {};
+        return {
+            leftLogo: defaultLeftLogo,
+            rightLogo: defaultRightLogo
+        };
     }
 };

@@ -7,13 +7,18 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Eye, EyeOff, LogIn, Moon } from "lucide-react";
 import { getDefaultLogosFromDatabase } from "@/lib/database";
+import defaultLeftLogo from "@/assets/left-logo.png";
+import defaultRightLogo from "@/assets/right-logo.png";
 
 export const LoginPage = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [logos, setLogos] = useState<{ leftLogo?: string | null; rightLogo?: string | null }>({});
+    const [logos, setLogos] = useState<{ leftLogo?: string | null; rightLogo?: string | null }>({
+        leftLogo: defaultLeftLogo,
+        rightLogo: defaultRightLogo
+    });
     const { login, user, isLoading } = useAuth();
     const navigate = useNavigate();
 
