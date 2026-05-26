@@ -1,10 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { User } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { getUserProfileFromDatabase, type UserProfile } from '@/lib/database';
 
 interface AuthContextType {
-    user: User | null;
+    user: any | null;
     profile: UserProfile | null;
     login: (credentials: any) => Promise<void>;
     logout: () => Promise<void>;
@@ -14,43 +13,48 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<User | null>(null);
+    const [user, setUser] = useState<any | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    const loadProfile = async (nextUser: User | null) => {
-        setUser(nextUser);
-        if (!nextUser) {
+    const loadProfile = async (userId: number | null) => {
+        if (!userId) {
+            setUser(null);
             setProfile(null);
             return;
         }
 
         try {
-            const nextProfile = await getUserProfileFromDatabase(nextUser.id, nextUser.email);
-            setProfile(nextProfile);
+            const nextProfile = await getUserProfileFromDatabase(userId);
+            if (nextProfile) {
+                setUser({ id: nextProfile.id, email: nextProfile.email });
+                setProfile(nextProfile);
+            } else {
+                setUser(null);
+                setProfile(null);
+                localStorage.removeItem('user_id');
+            }
         } catch (error) {
             console.error(error);
+            setUser(null);
             setProfile(null);
+            localStorage.removeItem('user_id');
         }
     };
 
     useEffect(() => {
         if (!isSupabaseConfigured) {
-            localStorage.removeItem('user');
+            localStorage.removeItem('user_id');
             setIsLoading(false);
             return;
         }
 
-        supabase.auth.getSession().then(async ({ data }) => {
-            await loadProfile(data.session?.user ?? null);
+        const storedUserId = localStorage.getItem('user_id');
+        if (storedUserId) {
+            loadProfile(Number(storedUserId)).finally(() => setIsLoading(false));
+        } else {
             setIsLoading(false);
-        });
-
-        const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-            loadProfile(session?.user ?? null);
-        });
-
-        return () => listener.subscription.unsubscribe();
+        }
     }, []);
 
     const login = async (credentials: any) => {
@@ -58,22 +62,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             throw new Error('Supabase is not configured.');
         }
 
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email: credentials.email,
-            password: credentials.password,
+        const { data, error } = await supabase.rpc('login', {
+            login_email: credentials.email,
+            login_password: credentials.password
         });
 
         if (error) throw error;
-        await loadProfile(data.user);
+        if (!data) throw new Error('Invalid login credentials');
+
+        localStorage.setItem('user_id', String(data.id));
+        await loadProfile(data.id);
     };
 
     const logout = async () => {
-        if (isSupabaseConfigured) {
-            await supabase.auth.signOut();
-        }
         setUser(null);
         setProfile(null);
-        localStorage.removeItem('user');
+        localStorage.removeItem('user_id');
     };
 
     return (

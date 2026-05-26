@@ -324,6 +324,17 @@ function distributeBets(sheets: Sheet[], targetRevenue: number, minBet: number, 
 
     const totalSlots = allSlots.length;
 
+    const absoluteMinRevenue = totalSlots * minBet;
+    const absoluteMaxRevenue = totalSlots * maxBet;
+
+    if (targetRevenue < absoluteMinRevenue) {
+        throw new Error(`Mathematically impossible: Target revenue for this booklet (₱${targetRevenue.toLocaleString()}) is lower than the absolute minimum possible (₱${absoluteMinRevenue.toLocaleString()}) with ${totalSlots} generated slots and a minimum bet of ₱${minBet}. Try lowering the minimum bet or increasing daily revenue.`);
+    }
+
+    if (targetRevenue > absoluteMaxRevenue) {
+        throw new Error(`Mathematically impossible: Target revenue for this booklet (₱${targetRevenue.toLocaleString()}) is higher than the absolute maximum possible (₱${absoluteMaxRevenue.toLocaleString()}) with ${totalSlots} generated slots and a maximum bet of ₱${maxBet}. Try increasing the maximum bet or decreasing daily revenue.`);
+    }
+
     for (let i = allSlots.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [allSlots[i], allSlots[j]] = [allSlots[j], allSlots[i]];
@@ -341,9 +352,29 @@ function distributeBets(sheets: Sheet[], targetRevenue: number, minBet: number, 
             : generateSpecificBet(minBet, maxBet));
     }
 
+    const initialTotal = generatedBets.reduce((sum, bet) => sum + bet, 0);
+    const scalingFactor = targetRevenue / initialTotal;
+
+    // Scale bets to match target closely while preserving distribution
+    for (let i = 0; i < totalSlots; i++) {
+        let scaledBet = generatedBets[i] * scalingFactor;
+        
+        // Ensure within min/max bounds
+        scaledBet = Math.max(minBet, Math.min(maxBet, scaledBet));
+        
+        // Preserve multiple of 5 if requested
+        if (slotTypes[i] === "multiple5" && scaledBet >= 10) {
+            scaledBet = Math.round(scaledBet / 5) * 5;
+        } else {
+            scaledBet = Math.round(scaledBet);
+        }
+        
+        generatedBets[i] = scaledBet;
+    }
+
     const generatedTotal = generatedBets.reduce((sum, bet) => sum + bet, 0);
     const adjustment = targetRevenue - generatedTotal;
-    console.log(`Generated bets total: ₱${generatedTotal.toLocaleString()}, Target: ₱${targetRevenue.toLocaleString()}, Adjustment needed: ₱${adjustment.toLocaleString()}`);
+    console.log(`Initial: ₱${initialTotal.toLocaleString()} -> Scaled bets total: ₱${generatedTotal.toLocaleString()}, Target: ₱${targetRevenue.toLocaleString()}, Adjustment needed: ₱${adjustment.toLocaleString()}`);
 
     const assignedBets: number[] = [...generatedBets];
     let remainingAdjustment = adjustment;
@@ -369,19 +400,23 @@ function distributeBets(sheets: Sheet[], targetRevenue: number, minBet: number, 
 
     // Final pass: fix any remaining penny differences
     if (remainingAdjustment !== 0) {
-        const shuffled = [...Array(totalSlots).keys()];
-        for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
-        for (const i of shuffled) {
-            if (remainingAdjustment === 0) break;
-            if (remainingAdjustment > 0 && assignedBets[i] < maxBet) {
-                assignedBets[i]++;
-                remainingAdjustment--;
-            } else if (remainingAdjustment < 0 && assignedBets[i] > minBet) {
-                assignedBets[i]--;
-                remainingAdjustment++;
+        let safetyCounter = 0;
+        while (remainingAdjustment !== 0 && safetyCounter < 100) {
+            safetyCounter++;
+            const shuffled = [...Array(totalSlots).keys()];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            for (const i of shuffled) {
+                if (remainingAdjustment === 0) break;
+                if (remainingAdjustment > 0 && assignedBets[i] < maxBet) {
+                    assignedBets[i]++;
+                    remainingAdjustment--;
+                } else if (remainingAdjustment < 0 && assignedBets[i] > minBet) {
+                    assignedBets[i]--;
+                    remainingAdjustment++;
+                }
             }
         }
     }
@@ -570,6 +605,8 @@ function allocateExactPayout(
         if (slot.currentBet < numberBet.bet) totalRevenueReduction += numberBet.bet - slot.currentBet;
         numberBet.number = winningNumbers[slot.gameTypeId];
         numberBet.bet = slot.currentBet;
+        (numberBet as any).payoutAmount = slot.currentBet * slot.payout;
+        (numberBet as any).isWinner = true;
         numbersChanged++;
     });
 
@@ -1054,12 +1091,13 @@ export function generateBookletBatch(
     totalPayout?: number,
     winningNumbers?: WinningNumbers,
     companyCode?: string,
-    drawRevenuePercentages?: Record<string, number>
+    drawRevenuePercentages?: Record<string, number>,
+    targetDate?: string
 ): BookletBatch {
     // Use custom game types if provided, otherwise fall back to default
     const gameTypes = customGameTypes || defaultGameTypes;
-    const now = new Date();
-    const dateStr = now.toISOString().split('T')[0];
+    const now = targetDate ? new Date(targetDate) : new Date();
+    const dateStr = targetDate || now.toISOString().split('T')[0];
 
     // Distribute revenue randomly across booklets
     const bookletRevenues = distributeRevenueAcrossBooklets(totalDailyRevenue, bookletCount);
@@ -1175,15 +1213,20 @@ export function generateBookletBatch(
         // CRITICAL: Recalculate each booklet's totalBets after payout allocation
         // This ensures the totalBets property reflects the actual sum of all bets
         booklets.forEach((booklet) => {
+            let bookletPayout = 0;
             booklet.totalBets = booklet.sheets.reduce(
                 (sum, sheet) => sum + sheet.tickets.reduce(
-                    (s, ticket) => s + ticket.numberBets.reduce((nb, bet) => nb + bet.bet, 0),
+                    (s, ticket) => s + ticket.numberBets.reduce((nb, bet) => {
+                        bookletPayout += (bet as any).payoutAmount || 0;
+                        return nb + bet.bet;
+                    }, 0),
                     0
                 ),
                 0
             );
             // Update revenue to match actual totalBets after payout allocation
             booklet.revenue = booklet.totalBets;
+            booklet.payout = bookletPayout;
         });
 
         // Recalculate grand total after allocation
@@ -1207,6 +1250,7 @@ export function generateBookletBatch(
             booklets,
             totalBooklets: bookletCount,
             grandTotalBets: finalGrandTotal,
+            totalPayout,
             generatedAt: now.toISOString(),
             drawRevenuePercentages,
         };

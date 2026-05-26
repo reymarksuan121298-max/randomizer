@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,58 +6,70 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, CheckCircle2, ClipboardList, FileText, KeyRound, Loader2, LogOut, Settings, Ticket, UserRound } from "lucide-react";
+import { Calendar, CheckCircle2, ClipboardList, FileText, Loader2, Settings, Ticket } from "lucide-react";
 import { toast } from "sonner";
 import { generateBookletBatch } from "@/utils/lotteryGenerator";
-import { gameTypes } from "@/data/gameTypes";
+import { getGameTypes } from "@/data/gameTypes";
 import type { WinningNumbers } from "@/types/lottery";
-import type { Batch } from "./BatchesPage";
-import { databaseEnabled, saveGeneratedBatchToDatabase } from "@/lib/database";
+import type { Batch } from "@/types/lottery";
+import { databaseEnabled, saveGeneratedBatchToDatabase, getCompanySettings } from "@/lib/database";
 import { useAuth } from "@/contexts/AuthContext";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
+
 
 const BATCHES_KEY = "batches";
 
-const drawCards = [
-    { id: "local-1030", label: "Swer3 10:30 AM", badge: "Local", placeholder: "000-999", gameTypeName: "Local 3D", time: "10:30 AM" },
-    { id: "3d-1400", label: "3D 2:00 PM", badge: "National", placeholder: "000-999", gameTypeName: "3D", time: "2:00 PM" },
-    { id: "local-1500", label: "Swer3 3:00 PM", badge: "Local", placeholder: "000-999", gameTypeName: "Local 3D", time: "3:00 PM" },
-    { id: "3d-1700", label: "3D 5:00 PM", badge: "National", placeholder: "000-999", gameTypeName: "3D", time: "5:00 PM" },
-    { id: "local-1900", label: "Swer3 7:00 PM", badge: "Local", placeholder: "000-999", gameTypeName: "Local 3D", time: "7:00 PM" },
-    { id: "3d-2100", label: "3D 9:00 PM", badge: "National", placeholder: "000-999", gameTypeName: "3D", time: "9:00 PM" },
-];
 
-const multiplierRows = [
-    ["Swer3 10:30 AM", "550x"],
-    ["3D 2:00 PM", "500x"],
-    ["Swer3 3:00 PM", "550x"],
-    ["3D 5:00 PM", "500x"],
-    ["Swer3 7:00 PM", "550x"],
-    ["3D 9:00 PM", "500x"],
-];
 
 const Index = () => {
     const navigate = useNavigate();
-    const { user, profile, logout } = useAuth();
+    const { user, profile } = useAuth();
     const winningInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
     const [betDistribution, setBetDistribution] = useState([80]);
     const [isGenerating, setIsGenerating] = useState(false);
     const [company, setCompany] = useState("");
+    const [logos, setLogos] = useState<Record<string, any>>({});
     const [companyCode, setCompanyCode] = useState("STL");
-    const [isPasswordOpen, setIsPasswordOpen] = useState(false);
     const [dailyRevenue, setDailyRevenue] = useState(80000);
     const [totalPayout, setTotalPayout] = useState(50000);
     const [bookletCount, setBookletCount] = useState(1);
     const [minBet, setMinBet] = useState(5);
     const [maxBet, setMaxBet] = useState(150);
-    const [serialStart, setSerialStart] = useState("1000001");
+    const [serialStarts, setSerialStarts] = useState<string[]>(["1000001"]);
+    const [disableLocal, setDisableLocal] = useState(false);
+    const getLocalDate = () => {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
 
-    const serialEnd = useMemo(() => {
-        const start = parseInt(serialStart) || 1000001;
-        return (start + bookletCount * 250 - 1).toString();
-    }, [bookletCount, serialStart]);
+    const [selectedDate, setSelectedDate] = useState(getLocalDate);
+
+    useEffect(() => {
+        setSerialStarts((prev) => {
+            const next = [...prev];
+            while (next.length < bookletCount) {
+                const prevStart = parseInt(next[next.length - 1] || "1000001") || 1000001;
+                next.push((prevStart + 250).toString());
+            }
+            return next;
+        });
+    }, [bookletCount]);
+
+    const handleMainSerialStartChange = (value: string) => {
+        const startNum = parseInt(value) || 0;
+        setSerialStarts((prev) => prev.map((_, i) => (startNum + i * 250).toString()));
+    };
+
+    const handleBookletSerialChange = (index: number, value: string) => {
+        setSerialStarts((prev) => {
+            const next = [...prev];
+            next[index] = value;
+            return next;
+        });
+    };
 
     useEffect(() => {
         if (profile?.company?.name) {
@@ -72,24 +84,35 @@ const Index = () => {
         }
     }, [profile, user]);
 
-    const todayDate = new Date().toLocaleDateString("en-US", {
+    useEffect(() => {
+        const loadLogos = async () => {
+            if (!profile?.company?.id) return;
+            try {
+                const settings = await getCompanySettings(Number(profile.company.id));
+                if (settings?.logos) {
+                    setLogos(settings.logos);
+                }
+            } catch (error) {
+                console.error("Failed to load company logos:", error);
+            }
+        };
+        loadLogos();
+    }, [profile?.company?.id]);
+
+    const formattedDate = new Date(selectedDate).toLocaleDateString("en-US", {
         weekday: "long",
         year: "numeric",
         month: "long",
         day: "numeric",
     });
 
+    const activeGameTypes = getGameTypes(company);
+
     const buildWinningNumbers = () => {
         const winningNumbers: WinningNumbers = {};
 
-        gameTypes.forEach((gt) => {
-            const matchingDraw = drawCards.find((draw) => {
-                const byName = gt.name.toLowerCase().includes(draw.gameTypeName.toLowerCase());
-                const byTime = !gt.time || gt.time === draw.time;
-                return byName && byTime;
-            });
-
-            const input = matchingDraw ? winningInputs.current[matchingDraw.id] : winningInputs.current[gt.id];
+        activeGameTypes.forEach((gt) => {
+            const input = winningInputs.current[gt.id];
             if (input?.value.trim()) {
                 winningNumbers[gt.id] = input.value.trim();
             }
@@ -120,9 +143,8 @@ const Index = () => {
 
         try {
             const winningNumbers = buildWinningNumbers();
-            const startNum = parseInt(serialStart) || 1000001;
             const serialRanges = Array.from({ length: bookletCount }, (_, i) => {
-                const bookletStart = startNum + i * 250;
+                const bookletStart = parseInt(serialStarts[i] || "1000001") || 1000001;
                 return {
                     start: bookletStart.toString(),
                     end: (bookletStart + 249).toString(),
@@ -139,26 +161,28 @@ const Index = () => {
                 maxBet,
                 betDistribution[0],
                 serialRanges,
-                gameTypes,
+                disableLocal ? activeGameTypes.filter(g => g.isNational) : activeGameTypes,
                 totalPayout,
                 winningNumbers,
-                companyCode
+                companyCode,
+                undefined,
+                selectedDate
             );
             (batchData as any).winningNumbers = winningNumbers;
 
             const code = companyCode.toUpperCase().slice(0, 3);
-            const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+            const dateStr = selectedDate.replace(/-/g, "");
             const rand = Math.floor(Math.random() * 900000000 + 100000000);
             const batchId = `${code}-${dateStr}-${rand}`;
 
             batchData.id = batchId;
-            batchData.name = `${company} - ${new Date().toLocaleDateString("en-PH", { month: "short", day: "numeric" })}`;
+            batchData.name = `${company} - ${new Date(selectedDate).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}`;
 
             const newBatch: Batch = {
                 id: batchId,
                 name: batchData.name,
                 province: company,
-                date: new Date().toISOString().slice(0, 10),
+                date: selectedDate,
                 booklets: bookletCount,
                 revenue: `PHP ${dailyRevenue.toLocaleString()}`,
                 createdAt: new Date().toISOString(),
@@ -177,7 +201,7 @@ const Index = () => {
                 await saveGeneratedBatchToDatabase(newBatch, batchData, {
                     companyName: company,
                     companyCode,
-                    gameTypes,
+                    gameTypes: activeGameTypes,
                 });
             }
 
@@ -195,76 +219,35 @@ const Index = () => {
 
     return (
         <main className="min-h-screen bg-[#f7f8fa] px-3 py-4 text-slate-900">
-            <div className="absolute right-4 top-4">
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            variant="outline"
-                            className="h-10 gap-2 rounded-lg border-2 border-[#f6b719] bg-white px-4 text-xs font-bold text-slate-900 shadow-sm"
-                        >
-                            <UserRound className="h-4 w-4 text-[#f6b719]" />
-                            {profile?.fullName || user?.user_metadata?.full_name || user?.email || "Account"}
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-80 rounded-lg border-slate-200 bg-white p-4 text-slate-950 shadow-xl">
-                        <div className="flex items-start gap-3 border-b border-slate-100 pb-3">
-                            <UserRound className="mt-1 h-5 w-5 text-[#f6b719]" />
-                            <div className="min-w-0">
-                                <div className="truncate text-sm font-black">{profile?.fullName || user?.user_metadata?.full_name || user?.email}</div>
-                                <div className="truncate text-xs text-slate-500">{user?.email}</div>
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                    {(profile?.role || user?.user_metadata?.role) && (
-                                        <span className="rounded bg-[#fff2bf] px-2 py-1 text-[10px] font-black uppercase text-[#d99a00]">
-                                            {profile?.role || user?.user_metadata?.role}
-                                        </span>
-                                    )}
-                                    {(profile?.company?.name || user?.user_metadata?.company) && (
-                                        <span className="rounded bg-[#fff2bf] px-2 py-1 text-[10px] font-mono text-[#d99a00]">
-                                            {profile?.company?.name || user?.user_metadata?.company}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                        <DropdownMenuItem className="mt-2 gap-2 rounded-md py-3 text-sm" onClick={() => setIsPasswordOpen(true)}>
-                            <KeyRound className="h-4 w-4" />
-                            Change Password
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            className="gap-2 rounded-md py-3 text-sm"
-                            onClick={async () => {
-                                await logout();
-                                navigate("/login");
-                            }}
-                        >
-                            <LogOut className="h-4 w-4" />
-                            Logout
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
-            <ChangePasswordDialog open={isPasswordOpen} onOpenChange={setIsPasswordOpen} />
-            <div className="mx-auto max-w-[380px]">
+            <div className="mx-auto max-w-[650px]">
                 <header className="mb-4 text-center">
                     <div className="mb-1 flex items-center justify-center gap-3">
-                        <div className="relative h-12 w-12 rounded-full bg-[conic-gradient(from_15deg,#fbbf24_0_16%,#dc2626_16%_31%,#1d4ed8_31%_52%,#f8fafc_52%_62%,#1d4ed8_62%_76%,#fbbf24_76%_88%,#dc2626_88%_100%)] shadow-sm">
-                            <div className="absolute inset-2 rounded-full bg-white/85" />
-                            <div className="absolute inset-4 rounded-full bg-[#1d4ed8]" />
-                        </div>
+                        {logos?.leftLogo ? (
+                            <img src={logos.leftLogo} alt="Company Logo" className="h-12 w-12 object-contain rounded-md" />
+                        ) : (
+                            <div className="relative h-12 w-12 rounded-full bg-[conic-gradient(from_15deg,#fbbf24_0_16%,#dc2626_16%_31%,#1d4ed8_31%_52%,#f8fafc_52%_62%,#1d4ed8_62%_76%,#fbbf24_76%_88%,#dc2626_88%_100%)] shadow-sm">
+                                <div className="absolute inset-2 rounded-full bg-white/85" />
+                                <div className="absolute inset-4 rounded-full bg-[#1d4ed8]" />
+                            </div>
+                        )}
                         <h1 className="text-[27px] font-black uppercase leading-none tracking-wide text-[#f6b719]">
                             STL Ticket System
                         </h1>
-                        <div className="relative h-12 w-11">
-                            <div className="absolute left-1 top-0 h-9 w-8 rounded-sm border-l-[7px] border-t-[7px] border-[#1d4ed8]" />
-                            <div className="absolute bottom-1 left-2 h-2 w-8 bg-[#f6b719]" />
-                            <div className="absolute bottom-0 right-0 h-8 w-7 border-b-[7px] border-r-[7px] border-[#dc2626]" />
-                        </div>
+                        {logos?.rightLogo ? (
+                            <img src={logos.rightLogo} alt="STL Logo" className="h-12 w-12 object-contain rounded-md" />
+                        ) : (
+                            <div className="relative h-12 w-11">
+                                <div className="absolute left-1 top-0 h-9 w-8 rounded-sm border-l-[7px] border-t-[7px] border-[#1d4ed8]" />
+                                <div className="absolute bottom-1 left-2 h-2 w-8 bg-[#f6b719]" />
+                                <div className="absolute bottom-0 right-0 h-8 w-7 border-b-[7px] border-r-[7px] border-[#dc2626]" />
+                            </div>
+                        )}
                     </div>
 
-                    <p className="mb-3 flex items-center justify-center gap-1 text-[10px] text-slate-500">
+                    <div className="mb-3 flex items-center justify-center gap-1 text-[10px] font-bold text-slate-500">
                         <Calendar className="h-3 w-3" />
-                        {todayDate}
-                    </p>
+                        <span>{formattedDate}</span>
+                    </div>
 
                     <div className="mb-2 grid grid-cols-3 gap-2">
                         <Button
@@ -304,8 +287,13 @@ const Index = () => {
                         <h2 className="text-center text-[13px] font-black uppercase tracking-wide">Generate Booklets</h2>
 
                         <section className="grid grid-cols-2 gap-x-3 gap-y-3">
-                            <Field label="Company" helper="Your assigned company and province">
-                                <Input value={company} onChange={(e) => setCompany(e.target.value)} className="h-8 text-[10px]" />
+                            <div className="col-span-2">
+                                <Field label="Company" helper="Your assigned company and province">
+                                    <Input value={company} readOnly className="h-8 text-[10px] bg-slate-50 cursor-not-allowed text-slate-600 font-semibold" />
+                                </Field>
+                            </div>
+                            <Field label="Batch Date" helper="Date for the generated batch">
+                                <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="h-8 text-[10px] font-mono text-slate-700" />
                             </Field>
                             <Field label="Daily Revenue (PHP)" helper="Total revenue across all booklets">
                                 <Input type="number" value={dailyRevenue} onChange={(e) => setDailyRevenue(parseInt(e.target.value) || 0)} className="h-8 text-[10px]" />
@@ -336,54 +324,94 @@ const Index = () => {
 
                         <Panel>
                             <h3 className="mb-3 text-[10px] font-black uppercase">Payout Multipliers (From Game Types)</h3>
-                            <div className="grid grid-cols-3 gap-x-3 gap-y-2">
-                                {multiplierRows.map(([label, multiplier]) => (
-                                    <div key={label} className="flex justify-between gap-1 text-[9px]">
-                                        <span className="truncate text-slate-500">{label}</span>
-                                        <strong>{multiplier}</strong>
+                            <div className="grid grid-cols-4 gap-x-3 gap-y-2">
+                                {activeGameTypes.map((gt) => (
+                                    <div key={gt.id} className="flex justify-between gap-1 text-[9px]">
+                                        <span className="truncate text-slate-500">{gt.name}</span>
+                                        <strong>{gt.multiplier}x</strong>
                                     </div>
                                 ))}
                             </div>
                             <p className="mt-2 text-[9px] text-slate-500">Each game type has its own multiplier. Payout = bet x multiplier</p>
                         </Panel>
 
-                        <section className="rounded-md border border-[#f6b719] bg-[#fffaf0] p-3">
-                            <h3 className="text-[10px] font-black uppercase">Winning Numbers (Optional)</h3>
-                            <p className="mt-1 text-[9px] text-slate-500">Enter winning numbers if you want to allocate a specific total payout</p>
+                        <section className="rounded-md border border-slate-200 bg-white p-3 shadow-sm">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <h3 className="text-[10px] font-black uppercase">Winning Numbers (Optional)</h3>
+                                    <p className="mt-1 text-[9px] text-slate-500">Enter winning numbers if you want to allocate a specific total payout</p>
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-0.5 rounded-md border border-slate-200 bg-white px-2 py-1 shadow-sm">
+                                    <input 
+                                        type="checkbox" 
+                                        id="disable-local"
+                                        checked={disableLocal}
+                                        onChange={(e) => setDisableLocal(e.target.checked)}
+                                        className="h-3 w-3 accent-[#f6b719]"
+                                    />
+                                    <Label htmlFor="disable-local" className="text-[9px] font-bold text-slate-600 cursor-pointer">Disable Local</Label>
+                                </div>
+                            </div>
                             <div className="mt-3 grid grid-cols-3 gap-2">
-                                {drawCards.map((draw) => (
-                                    <div key={draw.id} className="space-y-1">
-                                        <div className="flex items-center gap-1">
-                                            <Label className="truncate text-[8px] font-black">{draw.label}</Label>
-                                            <Badge className="h-3 rounded-[3px] bg-green-100 px-1 text-[6px] text-green-700 hover:bg-green-100">
-                                                {draw.badge}
-                                            </Badge>
+                                {activeGameTypes.map((gt) => {
+                                    const isLocal = !gt.isNational;
+                                    const isDisabled = disableLocal && isLocal;
+                                    const placeholder = gt.digits === 3 ? "000-999" : "00-99";
+                                    return (
+                                        <div key={gt.id} className={`space-y-1 ${isDisabled ? 'opacity-40 grayscale' : ''}`}>
+                                            <div className="flex items-center gap-1">
+                                                <Label className="truncate text-[8px] font-black">{gt.name}</Label>
+                                                <Badge className={`h-3 rounded-[3px] px-1 text-[6px] ${isLocal ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                    {isLocal ? "Local" : "National"}
+                                                </Badge>
+                                            </div>
+                                            <Input
+                                                ref={(el) => {
+                                                    winningInputs.current[gt.id] = el;
+                                                }}
+                                                placeholder={placeholder}
+                                                className="h-7 text-center text-[9px]"
+                                                disabled={isDisabled}
+                                            />
                                         </div>
-                                        <Input
-                                            ref={(el) => {
-                                                winningInputs.current[draw.id] = el;
-                                            }}
-                                            placeholder={draw.placeholder}
-                                            className="h-7 text-center text-[9px]"
-                                        />
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </section>
 
-                        <section>
-                            <h3 className="mb-2 text-[10px] font-black uppercase">Serial Number Ranges (250 per Booklet)</h3>
-                            <Panel>
-                                <h4 className="mb-2 text-[9px] font-black uppercase text-[#f6b719]">Booklet 1</h4>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <Field label="Serial Start" helper={`${bookletCount * 250} serials`}>
-                                        <Input value={serialStart} onChange={(e) => setSerialStart(e.target.value)} className="h-8 text-[10px]" />
-                                    </Field>
-                                    <Field label="Serial End" helper="Auto-calculated">
-                                        <Input value={serialEnd} readOnly className="h-8 bg-slate-50 text-[10px]" />
-                                    </Field>
-                                </div>
-                            </Panel>
+                        <section className="space-y-3">
+                            <h3 className="text-[10px] font-black uppercase">Serial Number Ranges (250 per Booklet)</h3>
+                            {Array.from({ length: bookletCount }).map((_, i) => {
+                                const startNum = parseInt(serialStarts[i] || "1000001") || 1000001;
+                                const endNum = startNum + 249;
+                                return (
+                                    <Panel key={i}>
+                                        <h4 className="mb-2 text-[9px] font-black uppercase text-[#f6b719]">Booklet {i + 1}</h4>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <Field label="Serial Start" helper="Range: 250 serials">
+                                                <Input 
+                                                    value={serialStarts[i] || ""} 
+                                                    onChange={(e) => {
+                                                        if (i === 0) {
+                                                            handleMainSerialStartChange(e.target.value);
+                                                        } else {
+                                                            handleBookletSerialChange(i, e.target.value);
+                                                        }
+                                                    }} 
+                                                    className="h-8 text-[10px]" 
+                                                />
+                                            </Field>
+                                            <Field label="Serial End" helper="&nbsp;">
+                                                <Input 
+                                                    value={endNum.toString()} 
+                                                    readOnly 
+                                                    className="h-8 text-[10px]" 
+                                                />
+                                            </Field>
+                                        </div>
+                                    </Panel>
+                                );
+                            })}
                         </section>
 
                         <Panel>

@@ -8,8 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Loader2, Play, ArrowLeft } from "lucide-react";
 import { generateBookletBatch } from "@/utils/lotteryGenerator";
-import { gameTypes } from "@/data/gameTypes";
-import type { Batch } from "./BatchesPage";
+import { getGameTypes } from "@/data/gameTypes";
+import type { Batch } from "@/types/lottery";
 import { databaseEnabled, saveGeneratedBatchToDatabase } from "@/lib/database";
 
 const BatchEditPage = () => {
@@ -49,7 +49,7 @@ const BatchEditPage = () => {
                 150, // maxBet
                 80, // multipleOfFivePercent
                 [{ start: "1000001", end: (1000001 + (config.bookletCount * 50 * 5) - 1).toString() }],
-                gameTypes,
+                getGameTypes(batch.province || batch.name),
                 config.targetPayout,
                 {}, // winningNumbers (empty for now, will be distributed)
                 config.companyCode
@@ -80,7 +80,7 @@ const BatchEditPage = () => {
                     await saveGeneratedBatchToDatabase(updatedBatch, generatedData, {
                         companyName: updatedBatch.province || updatedBatch.name,
                         companyCode: config.companyCode,
-                        gameTypes,
+                        gameTypes: getGameTypes(batch.province || batch.name),
                     });
                 }
             }

@@ -1,6 +1,54 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import type { BookletBatch, Booklet, NumberBet, Ticket } from '@/types/lottery';
+import { getCompanySettings, getUserProfileFromDatabase, databaseEnabled } from "@/lib/database";
+
+const FILIPINO_FIRST_NAMES = [
+    "Juan", "Jose", "Pedro", "Manuel", "Antonio", "Francisco", "Mario", "Danilo", "Renato", "Roberto", 
+    "Eduardo", "Rolando", "Reynaldo", "Rogelio", "Alfredo", "Alberto", "Rodolfo", "Ferdinand", "Joseph", "Michael", 
+    "Christopher", "John", "Christian", "David", "Mark", "James", "Daniel", "Angelo", "Joshua", "Gabriel", 
+    "Ethan", "Alexander", "Miguel", "Rafael", "Jayson", "Alden", "Kenneth", "Gerald", "Ryan", "Nelson",
+    "Maria", "Ana", "Teresa", "Josefina", "Carmen", "Loida", "Lourdes", "Elizabeth", "Corazon", "Imelda", 
+    "Gloria", "Susan", "Evelyn", "Fe", "Erlinda", "Norma", "Yolanda", "Leonora", "Dolores", "Mercy", 
+    "Jessica", "Jennifer", "Joy", "Mary", "Grace", "Sarah", "Patricia", "Bianca", "Angel", "Kyla", 
+    "Andrea", "Sophia", "Chloe", "Nicole", "Samantha", "Jasmine", "Angela", "Christine", "Camille", "Cherry"
+];
+
+const FILIPINO_LAST_NAMES = [
+    "Santos", "Reyes", "Cruz", "Bautista", "Ocampo", "dela Cruz", "Garcia", "Mendoza", "Ramos", "Aquino", 
+    "Flores", "Gonzales", "Castillo", "Dizon", "Castro", "Hernandez", "Salazar", "Perez", "Valenzuela", "Del Rosario", 
+    "Santiago", "Pascual", "Tolentino", "Soriano", "Marcos", "de Guzman", "Villanueva", "Mercado", "Espiritu", "Macaraeg", 
+    "Dimaculangan", "Catacutan", "Agoncillo", "Laurel", "Recto", "Quezon", "Roxas", "Osmeña", "Duterte", "Robredo", 
+    "Binay", "Poe", "Villar", "Cayetano", "Sotto", "Pacquiao", "Revilla", "Lapid"
+];
+
+const DEFAULT_FILIPINO_NAMES: string[] = (() => {
+    const namesSet = new Set<string>();
+    while (namesSet.size < 550) {
+        const first = FILIPINO_FIRST_NAMES[Math.floor(Math.random() * FILIPINO_FIRST_NAMES.length)];
+        const last = FILIPINO_LAST_NAMES[Math.floor(Math.random() * FILIPINO_LAST_NAMES.length)];
+        namesSet.add(`${first} ${last}`);
+    }
+    return Array.from(namesSet);
+})();
+
+export async function getWinnerNamesList(): Promise<string[]> {
+    if (!databaseEnabled()) return [];
+    try {
+        const userId = localStorage.getItem('user_id');
+        if (!userId) return [];
+        const profile = await getUserProfileFromDatabase(Number(userId));
+        if (!profile?.company?.id) return [];
+        const settings = await getCompanySettings(Number(profile.company.id));
+        if (settings?.winnerNames) {
+            const list = settings.winnerNames.split('\n').map((n: string) => n.trim()).filter(Boolean);
+            if (list.length > 0) return list;
+        }
+    } catch (error) {
+        console.error("Failed to load winner names list:", error);
+    }
+    return [];
+}
 
 const COLORS = {
     blue: '4472C4',
@@ -16,6 +64,15 @@ const COLORS = {
     profit: '00B050',
 };
 
+const DRAW_EXCEL_COLORS: Record<string, string> = {
+    '10:30 AM': 'FFE699',
+    '2:00 PM': 'FF9999',
+    '3:00 PM': '9BC2E6',
+    '5:00 PM': 'A9D08E',
+    '7:00 PM': 'FFFFFF',
+    '9:00 PM': 'BDD7EE',
+};
+
 type BetRow = {
     bookletNumber: number;
     sheetNumber: number;
@@ -28,6 +85,7 @@ type BetRow = {
     total: number;
     payout: number;
     isWinner: boolean;
+    winnerName?: string;
 };
 
 type WinnerRow = {
@@ -39,6 +97,7 @@ type WinnerRow = {
     combination: string;
     bet: number;
     amount: number;
+    winnerName?: string;
 };
 
 type GameStat = {
@@ -60,7 +119,8 @@ type ReportData = {
 };
 
 export async function exportToExcel(batch: BookletBatch, booklets: Booklet[] = batch.booklets) {
-    const workbook = buildFullReportWorkbook({ ...batch, booklets });
+    const winnerNames = await getWinnerNamesList();
+    const workbook = buildFullReportWorkbook({ ...batch, booklets }, winnerNames);
     const buffer = await workbook.xlsx.writeBuffer();
     const data = new Blob([buffer], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8',
@@ -68,13 +128,13 @@ export async function exportToExcel(batch: BookletBatch, booklets: Booklet[] = b
     saveAs(data, `${safeFileName(batch.name || batch.id || 'STL_Batch')}_Report.xlsx`);
 }
 
-export function buildFullReportWorkbook(batch: BookletBatch) {
+export function buildFullReportWorkbook(batch: BookletBatch, winnerNames: string[] = []) {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'STL Randomizer System';
     workbook.created = new Date();
     workbook.modified = new Date();
 
-    const report = buildReportData(batch);
+    const report = buildReportData(batch, winnerNames);
     addSummarySheet(workbook, batch, report);
     addAllTicketsSheet(workbook, report);
 
@@ -86,9 +146,9 @@ export function buildFullReportWorkbook(batch: BookletBatch) {
     return workbook;
 }
 
-export function buildAlphaListWorkbook(batch: BookletBatch) {
+export function buildAlphaListWorkbook(batch: BookletBatch, winnerNames: string[] = []) {
     const workbook = new ExcelJS.Workbook();
-    const report = buildReportData(batch);
+    const report = buildReportData(batch, winnerNames);
 
     batch.booklets.forEach((booklet) => addAlphaSheet(workbook, batch, booklet, report));
 
@@ -276,7 +336,7 @@ function addAllTicketsSheet(workbook: ExcelJS.Workbook, report: ReportData) {
         }
     });
 
-    sheet.autoFilter = `A2:P${report.rows.length + 2}`;
+
 }
 
 function addBookletSheet(workbook: ExcelJS.Workbook, batch: BookletBatch, booklet: Booklet, report: ReportData) {
@@ -295,38 +355,48 @@ function addBookletSheet(workbook: ExcelJS.Workbook, batch: BookletBatch, bookle
         { width: 10 },
         { width: 10 },
         { width: 10 },
-        { width: 12 },
+        { width: 25 },
     ];
 
-    mergeTitle(sheet, 'A1:K1', batch.name || batch.province || 'STL Batch', 11, '000000');
-    mergeTitle(sheet, 'A2:K2', batch.province || '', 10, '000000');
-    mergeTitle(sheet, 'A3:K3', formatLongDate(batch.date), 10, '000000');
-    section(sheet, 'A4:K4', 'WINNING NUMBERS', COLORS.yellow);
+    mergeTitle(sheet, 'A1:J1', batch.name || batch.province || 'STL Batch', 11, '000000');
+    mergeTitle(sheet, 'A2:J2', batch.province || '', 10, '000000');
+    mergeTitle(sheet, 'A3:J3', formatLongDate(batch.date), 10, '000000');
+    section(sheet, 'A4:J4', 'WINNING NUMBERS', COLORS.yellow);
 
     const winners = report.winningNumbers.slice(0, 6);
     sheet.getRow(5).values = winners.map((w) => w.time);
     sheet.getRow(6).values = winners.map((w) => w.game);
     sheet.getRow(7).values = winners.map((w) => w.number);
     [5, 6, 7].forEach((rowNumber) => {
-        sheet.getRow(rowNumber).font = { bold: true };
+        sheet.getRow(rowNumber).font = { bold: true, color: { argb: '000000' } };
         sheet.getRow(rowNumber).alignment = { horizontal: 'center' };
+        sheet.getRow(rowNumber).eachCell((cell) => {
+            cell.border = thinBorder();
+        });
     });
-    sheet.getRow(7).font = { bold: true, color: { argb: COLORS.gold } };
 
-    sheet.getRow(9).values = [`BOOKLET ${booklet.bookletNumber}`, 'SERIAL NUMBER', '', 'COMB.', 'BET.', 'COMB.', 'BET.', 'COMB.', 'BET.', '', 'TOTAL GROSS'];
-    sheet.getRow(10).values = ['', '', '', '', '', '', '', '', '', '', { formula: `SUM(K13:K262)`, result: booklet.revenue }];
-    sheet.getCell('K10').numFmt = currencyFmt;
+    winners.forEach((w, idx) => {
+        const col = idx + 1; // A is 1
+        const bgColor = DRAW_EXCEL_COLORS[w.time] || 'FFFFFF';
+        sheet.getRow(7).getCell(col).fill = solid(bgColor);
+    });
+
+    sheet.getRow(9).values = [`BOOKLET ${booklet.bookletNumber}`, 'SERIAL NUMBER', '', 'COMB.', 'BET.', 'COMB.', 'BET.', 'COMB.', 'BET.', 'TOTAL GROSS'];
+    sheet.getRow(10).values = ['', '', '', '', '', '', '', '', '', { formula: `SUM(F13:F262,H13:H262,J13:J262)`, result: booklet.revenue }];
+    sheet.getCell('J10').numFmt = currencyFmt;
+    sheet.getCell('J10').font = { bold: true, color: { argb: COLORS.profit } };
     sheet.getRow(9).font = { bold: true };
     sheet.getRow(9).fill = solid(COLORS.lightBlue);
 
-    header(sheet.getRow(12), ['GAME TYPE', 'TIME', 'SERIAL NUMBER', 'LETTER', 'COMB.', 'BET.', 'COMB.', 'BET.', 'COMB.', 'BET.', 'TOTAL']);
+    header(sheet.getRow(12), ['GAME TYPE', 'TIME', 'SERIAL NUMBER', 'LETTER', 'COMB.', 'BET.', 'COMB.', 'BET.', 'COMB.', 'BET.'], COLORS.blue);
 
     const bookletRows = report.rows.filter((row) => row.bookletNumber === booklet.bookletNumber);
     bookletRows.forEach((entry, index) => {
         const rowNumber = 13 + index;
         const row = sheet.getRow(rowNumber);
         const [a, b, c] = entry.bets;
-        row.values = [
+        
+        const rowValues: any[] = [
             entry.game,
             entry.time,
             entry.ticket.serialNumber || '',
@@ -337,16 +407,46 @@ function addBookletSheet(workbook: ExcelJS.Workbook, batch: BookletBatch, bookle
             b?.bet || '',
             c?.number || '',
             c?.bet || '',
-            { formula: `SUM(F${rowNumber},H${rowNumber},J${rowNumber})`, result: entry.total },
         ];
-        [6, 8, 10, 11].forEach((col) => (row.getCell(col).numFmt = numberFmt));
+
+        if (entry.isWinner && entry.winnerName) {
+            rowValues.push(entry.winnerName);
+        }
+
+        row.values = rowValues;
+        
+        [6, 8, 10].forEach((col) => (row.getCell(col).numFmt = numberFmt));
+        
         row.eachCell((cell) => {
             cell.border = thinBorder();
         });
-        if (entry.isWinner) row.fill = solid(COLORS.lightYellow);
+
+        // Apply light green management color to BET columns
+        [6, 8, 10].forEach((col) => {
+            row.getCell(col).fill = solid('E2EFDA');
+        });
+
+        const hasWinner = entry.payout > 0;
+        if (hasWinner) {
+            row.eachCell((cell) => {
+                cell.fill = solid(COLORS.lightYellow);
+            });
+        }
+
+        const checkWinner = (bet: NumberBet | undefined, colOffset: number) => {
+            if (bet && getBetPayout(bet, entry.multiplier, (batch as any).winningNumbers || {}) > 0) {
+                const cell = row.getCell(colOffset);
+                cell.fill = solid(COLORS.yellow);
+                cell.font = { bold: true, color: { argb: COLORS.white } };
+            }
+        };
+
+        checkWinner(a, 5);
+        checkWinner(b, 7);
+        checkWinner(c, 9);
     });
 
-    sheet.autoFilter = `A12:K${12 + bookletRows.length}`;
+
 }
 
 function addAlphaSheet(workbook: ExcelJS.Workbook, batch: BookletBatch, booklet: Booklet, report: ReportData) {
@@ -395,19 +495,34 @@ function addAlphaSheet(workbook: ExcelJS.Workbook, batch: BookletBatch, booklet:
     });
 }
 
-function buildReportData(batch: BookletBatch): ReportData {
+function stripTime(gameName: string) {
+    return gameName.replace(/ \d{1,2}:\d{2} [AP]M/i, '').trim();
+}
+
+function buildReportData(batch: BookletBatch, winnerNames: string[] = []): ReportData {
     const rows: BetRow[] = [];
     const winners: WinnerRow[] = [];
     const statsMap = new Map<string, GameStat>();
     const winningNumberMap = new Map<string, { game: string; time: string; type: string; number: string }>();
     const configuredWinners = ((batch as any).winningNumbers || {}) as Record<string, string>;
 
+    const shuffledNames = winnerNames && winnerNames.length > 0 
+        ? [...winnerNames].sort(() => Math.random() - 0.5) 
+        : [...DEFAULT_FILIPINO_NAMES].sort(() => Math.random() - 0.5);
+    let nameIndex = 0;
+    const getRandomWinnerName = () => {
+        const name = shuffledNames[nameIndex % shuffledNames.length];
+        nameIndex++;
+        return name;
+    };
+
     batch.booklets.forEach((booklet) => {
         booklet.sheets.forEach((sheet, sheetIndex) => {
             sheet.tickets.forEach((ticket) => {
                 const bets = ticket.numberBets.slice(0, 3);
                 const firstBet = bets[0];
-                const game = firstBet?.gameTypeName || 'Game';
+                const rawGame = firstBet?.gameTypeName || 'Game';
+                const game = stripTime(rawGame);
                 const time = firstBet?.gameTypeTime || '';
                 const type = isLocalGame(game) ? 'Local' : 'National';
                 const multiplier = getMultiplier(firstBet);
@@ -415,6 +530,7 @@ function buildReportData(batch: BookletBatch): ReportData {
                 const payout = bets.reduce((sum, bet) => sum + getBetPayout(bet, multiplier, configuredWinners), 0);
                 const isWinner = payout > 0;
                 const sheetNumber = sheetIndex + 1;
+                const ticketWinnerName = isWinner ? getRandomWinnerName() : undefined;
 
                 rows.push({
                     bookletNumber: booklet.bookletNumber,
@@ -428,6 +544,7 @@ function buildReportData(batch: BookletBatch): ReportData {
                     total,
                     payout,
                     isWinner,
+                    winnerName: ticketWinnerName,
                 });
 
                 bets.forEach((bet) => {
@@ -435,7 +552,7 @@ function buildReportData(batch: BookletBatch): ReportData {
                     const key = `${bet.gameTypeName}|${bet.gameTypeTime || ''}`;
                     if (!statsMap.has(key)) {
                         statsMap.set(key, {
-                            game: bet.gameTypeName,
+                            game: stripTime(bet.gameTypeName),
                             time: bet.gameTypeTime || '',
                             type: isLocalGame(bet.gameTypeName) ? 'Local' : 'National',
                             multiplier: getMultiplier(bet),
@@ -455,16 +572,17 @@ function buildReportData(batch: BookletBatch): ReportData {
                         stat.payout += betPayout;
                         winners.push({
                             bookletNumber: booklet.bookletNumber,
-                            game: bet.gameTypeName,
+                            game: stripTime(bet.gameTypeName),
                             time: bet.gameTypeTime || '',
                             serialNumber: ticket.serialNumber || '',
                             letter: ticket.label,
                             combination: bet.number,
                             bet: bet.bet,
                             amount: betPayout,
+                            winnerName: ticketWinnerName,
                         });
                         winningNumberMap.set(key, {
-                            game: bet.gameTypeName,
+                            game: stripTime(bet.gameTypeName),
                             time: bet.gameTypeTime || '',
                             type: isLocalGame(bet.gameTypeName) ? 'Local' : 'National',
                             number: bet.number,
@@ -480,7 +598,7 @@ function buildReportData(batch: BookletBatch): ReportData {
         if (!sample) return;
         const key = `${sample.gameTypeName}|${sample.gameTypeTime || ''}`;
         winningNumberMap.set(key, {
-            game: sample.gameTypeName,
+            game: stripTime(sample.gameTypeName),
             time: sample.gameTypeTime || '',
             type: isLocalGame(sample.gameTypeName) ? 'Local' : 'National',
             number,

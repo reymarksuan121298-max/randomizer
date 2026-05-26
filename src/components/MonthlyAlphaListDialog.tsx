@@ -37,30 +37,33 @@ export const MonthlyAlphaListDialog = ({ open, onOpenChange, batches }: any) => 
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md bg-white text-slate-950">
                 <DialogHeader>
-                    <DialogTitle>Export Monthly Alpha List</DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle className="flex items-center gap-2 font-black uppercase text-slate-900">
+                        <FileSpreadsheet className="h-5 w-5 text-[#f7b500]" />
+                        Export Monthly Alpha List
+                    </DialogTitle>
+                    <DialogDescription className="text-sm text-slate-500">
                         Select month to generate the comprehensive bet report.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                        <Label>Select Month</Label>
+                        <Label className="text-xs font-bold text-slate-600">Select Month</Label>
                         <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                            <SelectTrigger>
+                            <SelectTrigger className="border-slate-200 bg-slate-50 font-semibold text-slate-900">
                                 <SelectValue placeholder="Select month" />
                             </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="March 2026">March 2026</SelectItem>
-                                <SelectItem value="February 2026">February 2026</SelectItem>
+                            <SelectContent className="bg-white">
+                                <SelectItem value="March 2026" className="cursor-pointer font-semibold text-slate-700 hover:bg-slate-100">March 2026</SelectItem>
+                                <SelectItem value="February 2026" className="cursor-pointer font-semibold text-slate-700 hover:bg-slate-100">February 2026</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
                 </div>
-                <DialogFooter className="sm:justify-end">
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleExport} disabled={isExporting} className="gap-2">
+                <DialogFooter className="gap-2 sm:justify-end">
+                    <Button variant="outline" onClick={() => onOpenChange(false)} className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50">Cancel</Button>
+                    <Button onClick={handleExport} disabled={isExporting} className="gap-2 bg-[#f7b500] font-bold text-slate-950 hover:bg-[#e6a600]">
                         {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
                         Generate Alpha List
                     </Button>

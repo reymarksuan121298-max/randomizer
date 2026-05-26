@@ -12,6 +12,7 @@ import {
     Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SheetList } from "@/components/SheetList";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -80,12 +81,20 @@ export const BatchDetailPage = () => {
     const analysis = useMemo(() => {
         if (!batchData) return null;
 
+        const bookletsToProcess = selectedBookletIdx === -1 
+            ? batchData.booklets 
+            : [batchData.booklets[selectedBookletIdx]];
+
+        if (!bookletsToProcess[0]) return null;
+
         const drawMap = new Map<string, DrawSummary>();
         const gameTypes = new Set<string>();
         const winningMap = new Map<string, { label: string; number: string; payout: number }>();
         let explicitPayout = 0;
+        let selectedRevenue = 0;
 
-        batchData.booklets.forEach((booklet) => {
+        bookletsToProcess.forEach((booklet) => {
+            selectedRevenue += booklet.totalBets || booklet.revenue || 0;
             booklet.sheets.forEach((sheet) => {
                 sheet.tickets.forEach((ticket) => {
                     ticket.numberBets.forEach((bet) => {
@@ -108,30 +117,40 @@ export const BatchDetailPage = () => {
                         draw.sheets.add(`${booklet.bookletNumber}-${sheet.id}`);
                         draw.revenue += bet.bet;
 
+                        if (!winningMap.has(key)) {
+                            const explicitNumber = (batchData as any).winningNumbers?.[bet.gameTypeId || ""];
+                            winningMap.set(key, {
+                                label: `${gameName}_${time}`.replace(/\s+/g, ""),
+                                number: explicitNumber || "TBD",
+                                payout: 0,
+                            });
+                        }
+
                         const payout = Number((bet as any).payout || (bet as any).payoutAmount || (bet as any).win || 0);
                         if (payout > 0) {
                             draw.payout += payout;
                             draw.winners += 1;
                             explicitPayout += payout;
-                            winningMap.set(key, {
-                                label: `${gameName}_${time}`.replace(/\s+/g, ""),
-                                number: bet.number,
-                                payout,
-                            });
-                        } else if (!winningMap.has(key)) {
-                            winningMap.set(key, {
-                                label: `${gameName}_${time}`.replace(/\s+/g, ""),
-                                number: bet.number,
-                                payout: 0,
-                            });
+                            const existing = winningMap.get(key);
+                            if (existing) {
+                                existing.payout += payout;
+                                if (existing.number === "TBD") {
+                                    existing.number = bet.number;
+                                }
+                            }
                         }
                     });
                 });
             });
         });
 
-        const totalPayout = batchData.totalPayout || explicitPayout || 0;
-        const totalRevenue = batchData.grandTotalBets || batchData.totalDailyRevenue || 0;
+        const totalPayout = selectedBookletIdx === -1 
+            ? (batchData.totalPayout || explicitPayout || 0)
+            : (explicitPayout || Math.round(((batchData.totalPayout || 0) * selectedRevenue) / (batchData.grandTotalBets || batchData.totalDailyRevenue || 1)));
+            
+        const totalRevenue = selectedBookletIdx === -1
+            ? (batchData.grandTotalBets || batchData.totalDailyRevenue || 0)
+            : selectedRevenue;
         const drawSummaries = Array.from(drawMap.values()).sort((a, b) => {
             const ai = DRAW_ORDER.indexOf(a.time);
             const bi = DRAW_ORDER.indexOf(b.time);
@@ -153,7 +172,35 @@ export const BatchDetailPage = () => {
             drawSummaries,
             winningNumbers: Array.from(winningMap.values()).slice(0, 6),
         };
-    }, [batchData]);
+    }, [batchData, selectedBookletIdx]);
+
+    const handleDataChange = () => {
+        if (!batchData) return;
+        const newData = { ...batchData };
+        
+        let newGrandTotal = 0;
+        newData.booklets.forEach(b => {
+            let bTotal = 0;
+            b.sheets.forEach(s => {
+                s.tickets.forEach(t => {
+                    t.numberBets.forEach(nb => {
+                        bTotal += nb.bet;
+                    });
+                });
+            });
+            b.revenue = bTotal;
+            b.totalBets = bTotal;
+            newGrandTotal += bTotal;
+        });
+        
+        newData.grandTotalBets = newGrandTotal;
+        newData.totalDailyRevenue = newGrandTotal;
+        
+        setBatchData(newData);
+        if (newData.id) {
+            localStorage.setItem(`batch_data_${newData.id}`, JSON.stringify(newData));
+        }
+    };
 
     const runReport = async (kind: string) => {
         if (!batchData) return;
@@ -223,12 +270,14 @@ export const BatchDetailPage = () => {
                 </header>
 
                 <section className="rounded-lg border-2 border-[#f7b500] bg-white p-5">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
-                        <Metric label="Total Booklets" value={String(batchData.booklets.length)} accent="text-[#f7b500]" />
+                    <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-5">
+                        <Metric label="Total Booklets" value={String(batchData.booklets.length)} accent="text-[#f7b500]" accentBorder />
                         <Metric label="Daily Revenue" value={formatMoney(analysis.totalRevenue)} />
                         <Metric label="Grand Total Bets" value={formatMoney(batchData.grandTotalBets)} accent="text-[#f7b500]" />
                         <Metric label="Total Payout" value={formatMoney(analysis.totalPayout)} danger />
                         <Metric label="Prize Fund (33.9% of Daily Revenue)" value={formatMoney(analysis.prizeFund)} purple />
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
                         <Metric label="Game Types" value={`${analysis.gameTypeCount} types`} />
                     </div>
 
@@ -263,7 +312,9 @@ export const BatchDetailPage = () => {
                 </section>
 
                 <section className="rounded-lg border-2 border-[#f7b500] bg-white p-5">
-                    <h2 className="mb-4 text-sm font-black uppercase text-[#f7b500]">Per-Draw Summary (All Booklets)</h2>
+                    <h2 className="mb-4 text-sm font-black uppercase text-[#f7b500]">
+                        PER-DRAW SUMMARY ({selectedBookletIdx === -1 ? "ALL BOOKLETS" : `BOOKLET ${selectedBookletIdx + 1}`})
+                    </h2>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                         {analysis.drawSummaries.map((draw) => (
                             <DrawCard key={draw.time} draw={draw} />
@@ -271,20 +322,54 @@ export const BatchDetailPage = () => {
                     </div>
                 </section>
 
-                <div className="flex justify-center gap-3">
+
+                <div className="flex flex-wrap justify-center gap-3">
+                    <button
+                        className={`rounded-md border-2 px-4 py-2 font-mono text-[10px] font-black uppercase transition-colors ${selectedBookletIdx === -1
+                            ? "border-black bg-[#f7b500] text-slate-950"
+                            : "border-transparent bg-white text-slate-500 hover:bg-slate-50"
+                            }`}
+                        onClick={() => setSelectedBookletIdx(-1)}
+                    >
+                        ALL BOOKLETS
+                    </button>
                     {batchData.booklets.map((booklet, idx) => (
                         <button
                             key={booklet.id}
-                            className={`rounded-md px-4 py-2 font-mono text-[10px] font-black uppercase ${selectedBookletIdx === idx
-                                ? "bg-[#f7b500] text-slate-950"
-                                : "bg-white text-slate-500"
+                            className={`rounded-md border-2 px-4 py-2 font-mono text-[10px] font-black uppercase transition-colors ${selectedBookletIdx === idx
+                                ? "border-black bg-[#f7b500] text-slate-950"
+                                : "border-transparent bg-white text-slate-500 hover:bg-slate-50"
                                 }`}
                             onClick={() => setSelectedBookletIdx(idx)}
                         >
-                            {booklet.id || `Booklet ${idx + 1}`}
+                            BOOKLET {idx + 1}
                         </button>
                     ))}
                 </div>
+
+                <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="w-32"></div>
+                    <div className="flex-1 text-center">
+                        <h3 className="text-xs font-black uppercase text-[#5f849c]">
+                            {batchData.province || batchData.name} {selectedBookletIdx !== -1 && `(${batchData.booklets[selectedBookletIdx].id || `Booklet ${selectedBookletIdx + 1}`})`}
+                        </h3>
+                        <div className="my-2 font-mono text-3xl font-black text-[#f7b500]">
+                            {formatMoney(analysis.totalRevenue)}
+                        </div>
+                        <div className="flex items-center justify-center gap-4 text-xs font-medium text-slate-500">
+                            <span>Total Bets: {formatMoney(analysis.totalRevenue)}</span>
+                            <span className="font-bold text-[#f7b500]">Total Prizes: {formatMoney(analysis.totalPayout)}</span>
+                        </div>
+                    </div>
+                    <div className="w-32 text-right">
+                        <Button variant="outline" className="h-9 text-xs font-medium text-slate-700" onClick={() => runReport("csv")}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Export CSV
+                        </Button>
+                    </div>
+                </div>
+
+                <SheetList batch={batchData} selectedBookletIdx={selectedBookletIdx} onDataChange={handleDataChange} />
             </div>
         </main>
     );
@@ -331,8 +416,8 @@ const ReportItem = ({ icon, label, onClick }: { icon: ReactNode; label: string; 
     </DropdownMenuItem>
 );
 
-const Metric = ({ label, value, accent, danger, purple }: { label: string; value: string; accent?: string; danger?: boolean; purple?: boolean }) => (
-    <div className={`rounded-lg bg-slate-50 px-4 py-4 ${danger ? "border-l-2 border-red-500" : ""} ${purple ? "border-l-2 border-purple-500" : ""}`}>
+const Metric = ({ label, value, accent, danger, purple, accentBorder }: { label: string; value: string; accent?: string; danger?: boolean; purple?: boolean; accentBorder?: boolean }) => (
+    <div className={`rounded-lg bg-slate-50 px-4 py-4 ${danger ? "border-l-2 border-red-500" : ""} ${purple ? "border-l-2 border-purple-500" : ""} ${accentBorder ? "border-l-2 border-[#f7b500]" : ""}`}>
         <div className="mb-2 text-[10px] text-slate-500">{label}</div>
         <div className={`font-mono text-base font-black ${danger ? "text-red-500" : purple ? "text-purple-600" : accent || "text-slate-950"}`}>
             {value}
@@ -350,20 +435,24 @@ const Info = ({ label, value }: { label: string; value: string }) => (
 const DrawCard = ({ draw }: { draw: DrawSummary }) => {
     const net = draw.revenue - draw.payout;
     const margin = draw.revenue > 0 ? (net / draw.revenue) * 100 : 0;
+    const isNegative = net < 0;
+    const netSign = net > 0 ? "+" : "";
 
     return (
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-xs font-black uppercase text-[#f7b500]">{draw.time}</h3>
                 {draw.winners > 0 && (
-                    <span className="rounded bg-[#fff0bf] px-2 py-1 text-[10px] font-black text-[#c18300]">x {draw.winners}</span>
+                    <span className="flex items-center gap-1 rounded bg-[#fff0bf] px-2 py-1 text-[10px] font-black text-[#c18300]">
+                        <Trophy className="h-3 w-3" /> {draw.winners}
+                    </span>
                 )}
             </div>
             <DrawLine label="Sheets:" value={String(draw.sheets.size)} />
             <DrawLine label="Revenue:" value={formatMoney(draw.revenue)} good />
             <DrawLine label="Payout:" value={formatMoney(draw.payout)} bad={draw.payout > 0} />
             <div className="mt-3 border-t border-slate-200 pt-2">
-                <DrawLine label="Net Profit:" value={`${formatMoney(net)} (${margin.toFixed(1)}%)`} blue />
+                <DrawLine label="Net Profit:" value={`${netSign}${formatMoney(net)} (${margin.toFixed(1)}%)`} blue={!isNegative} bad={isNegative} />
             </div>
         </div>
     );
@@ -378,4 +467,4 @@ const DrawLine = ({ label, value, good, bad, blue }: { label: string; value: str
     </div>
 );
 
-const formatMoney = (value: number) => `P${Math.round(value || 0).toLocaleString()}`;
+const formatMoney = (value: number) => `₱${Math.round(value || 0).toLocaleString()}`;

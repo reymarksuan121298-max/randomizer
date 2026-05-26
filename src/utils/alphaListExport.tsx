@@ -1,9 +1,10 @@
 import { saveAs } from 'file-saver';
 import type { BookletBatch } from '@/types/lottery';
-import { buildAlphaListWorkbook } from './excelExport';
+import { buildAlphaListWorkbook, getWinnerNamesList } from './excelExport';
 
 export async function exportAlphaList(batch: BookletBatch) {
-    const workbook = buildAlphaListWorkbook(batch);
+    const winnerNames = await getWinnerNamesList();
+    const workbook = buildAlphaListWorkbook(batch, winnerNames);
     const buffer = await workbook.xlsx.writeBuffer();
     const data = new Blob([buffer], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8',

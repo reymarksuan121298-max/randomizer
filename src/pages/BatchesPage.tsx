@@ -22,20 +22,10 @@ import {
     listBatchesFromDatabase,
     updateBatchInDatabase,
 } from "@/lib/database";
-
-export interface Batch {
-    id: string;
-    name: string;
-    province: string;
-    date: string;
-    booklets: number;
-    revenue: string;
-    createdAt: string;
-    createdBy: string;
-    status: "pending" | "generated" | "approved";
-    total_revenue?: number;
-    total_payout?: number;
-}
+import { useAuth } from "@/contexts/AuthContext";
+import { MonthlyAlphaListDialog } from "@/components/MonthlyAlphaListDialog";
+import { MonthlyMatrixFormatDialog } from "@/components/MonthlyMatrixFormatDialog";
+import type { Batch } from "@/types/lottery";
 
 const BATCHES_KEY = "batches";
 const PAGE_SIZE = 9;
@@ -170,22 +160,32 @@ const deriveSerialRanges = (batch: Batch): SerialRange[] => {
 
 export const BatchesPage = () => {
     const navigate = useNavigate();
+    const { profile, user, isLoading: authLoading } = useAuth();
+    
     const [batches, setBatches] = useState<Batch[]>(loadBatches);
     const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [editTarget, setEditTarget] = useState<Batch | null>(null);
     const [editForm, setEditForm] = useState(emptyForm());
     const [deleteTarget, setDeleteTarget] = useState<Batch | null>(null);
+    const [isAlphaOpen, setIsAlphaOpen] = useState(false);
+    const [isMatrixOpen, setIsMatrixOpen] = useState(false);
 
     useEffect(() => {
         saveBatches(batches);
     }, [batches]);
 
     useEffect(() => {
-        if (!databaseEnabled()) return;
+        if (!databaseEnabled() || authLoading) return;
+
+        const isAdmin = profile?.role === 'admin' || user?.user_metadata?.role === 'admin';
+        const companyId = !isAdmin ? (profile?.company?.id || user?.user_metadata?.company_id) : undefined;
+        
+        // If not admin and no company ID is found yet, wait for profile to fully load
+        if (!isAdmin && !companyId && profile === null) return;
 
         let cancelled = false;
-        listBatchesFromDatabase()
+        listBatchesFromDatabase(companyId)
             .then((dbBatches) => {
                 if (cancelled) return;
                 setBatches(dbBatches);
@@ -199,7 +199,7 @@ export const BatchesPage = () => {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [authLoading, profile, user]);
 
     const filtered = useMemo(() => {
         const q = search.toLowerCase();
@@ -375,11 +375,17 @@ export const BatchesPage = () => {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-56 rounded-md border-slate-200 bg-white p-1.5 shadow-lg">
-                            <DropdownMenuItem className="gap-2 rounded-sm py-3 text-[11px] font-black uppercase">
+                            <DropdownMenuItem 
+                                className="gap-2 rounded-sm py-3 text-[11px] font-black uppercase"
+                                onClick={() => setIsAlphaOpen(true)}
+                            >
                                 <FileText className="h-4 w-4" />
                                 Monthly Alpha List
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 rounded-sm py-3 text-[11px] font-black uppercase">
+                            <DropdownMenuItem 
+                                className="gap-2 rounded-sm py-3 text-[11px] font-black uppercase"
+                                onClick={() => setIsMatrixOpen(true)}
+                            >
                                 <LayoutTemplate className="h-4 w-4" />
                                 Matrix Format
                             </DropdownMenuItem>
@@ -637,7 +643,7 @@ export const BatchesPage = () => {
             </Dialog>
 
             <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
-                <DialogContent className="sm:max-w-sm">
+                <DialogContent className="sm:max-w-sm bg-white text-slate-950">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-red-600 font-black uppercase">
                             <AlertTriangle className="h-5 w-5" />
@@ -661,6 +667,9 @@ export const BatchesPage = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <MonthlyAlphaListDialog open={isAlphaOpen} onOpenChange={setIsAlphaOpen} batches={batches} />
+            <MonthlyMatrixFormatDialog open={isMatrixOpen} onOpenChange={setIsMatrixOpen} batches={batches} />
         </div>
     );
 };

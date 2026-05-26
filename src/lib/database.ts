@@ -1,7 +1,6 @@
 import { gameTypes as defaultGameTypes } from "@/data/gameTypes";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
-import type { BookletBatch, GameType, NumberBet } from "@/types/lottery";
-import type { Batch } from "@/pages/BatchesPage";
+import type { BookletBatch, GameType, NumberBet, Batch } from "@/types/lottery";
 
 type DbGameType = { id: number; code: string };
 type DbBooklet = { id: number; booklet_number: number };
@@ -17,9 +16,25 @@ export interface CompanyRecord {
     contact: string;
 }
 
+export interface CompanySettings {
+    id: number;
+    company_id: number;
+    province: string;
+    city: string;
+    status: string;
+    prize_fund_percentage: number;
+    agent_commission_percentage: number;
+    report_frequency: string;
+    logos: Record<string, any>;
+    municipalities: any[];
+    report_details: Record<string, any>;
+    winner_names: string[];
+    created_at: string;
+    updated_at: string;
+}
+
 export interface UserProfile {
     id: number;
-    authUserId: string | null;
     email: string;
     fullName: string;
     role: string;
@@ -185,14 +200,20 @@ const toBatchDetail = (row: any): BookletBatch => {
     } as BookletBatch;
 };
 
-export const listBatchesFromDatabase = async (): Promise<Batch[]> => {
+export const listBatchesFromDatabase = async (companyId?: string | number): Promise<Batch[]> => {
     if (!databaseEnabled()) return [];
 
-    const { data, error } = await supabase
+    let query = supabase
         .from("batches")
         .select(BATCH_SELECT)
         .order("batch_date", { ascending: false })
         .order("created_at", { ascending: false });
+
+    if (companyId) {
+        query = query.eq("company_id", companyId);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
     return (data || []).map(toBatchSummary);
@@ -256,15 +277,15 @@ export const listCompaniesFromDatabase = async (): Promise<CompanyRecord[]> => {
     }));
 };
 
-export const getUserProfileFromDatabase = async (authUserId: string, email?: string): Promise<UserProfile | null> => {
+export const getUserProfileFromDatabase = async (userId: number, email?: string): Promise<UserProfile | null> => {
     if (!databaseEnabled()) return null;
 
     let query = supabase
         .from("users")
-        .select("id, auth_user_id, email, full_name, role, status, companies(id, name, code, address, contact_email)")
+        .select("id, email, full_name, role, status, companies!users_company_id_fkey(id, name, code, address, contact_email)")
         .limit(1);
 
-    query = authUserId ? query.eq("auth_user_id", authUserId) : query.eq("email", email || "");
+    query = userId ? query.eq("id", userId) : query.eq("email", email || "");
 
     const { data, error } = await query.maybeSingle();
     if (error) throw error;
@@ -274,7 +295,6 @@ export const getUserProfileFromDatabase = async (authUserId: string, email?: str
 
     return {
         id: data.id,
-        authUserId: data.auth_user_id,
         email: data.email,
         fullName: data.full_name,
         role: data.role,
@@ -591,4 +611,106 @@ const insertInChunks = async <T = any>(table: string, rows: any[], select?: stri
         if (Array.isArray(data)) inserted.push(...(data as T[]));
     }
     return inserted;
+};
+
+export const getCompanySettings = async (companyId: number) => {
+    if (!databaseEnabled()) return null;
+    
+    const { data: company, error: companyError } = await supabase
+        .from("companies")
+        .select("name, code")
+        .eq("id", companyId)
+        .single();
+        
+    if (companyError || !company) return null;
+    
+    const { data: settings } = await supabase
+        .from("company_settings")
+        .select("*")
+        .eq("company_id", companyId)
+        .maybeSingle();
+        
+    return {
+        name: company.name || "",
+        code: company.code || "",
+        province: settings?.province || "",
+        city: settings?.city || "",
+        status: settings?.status || "active",
+        prizeFundPercentage: settings?.prize_fund_percentage?.toString() || "",
+        agentCommissionPercentage: settings?.agent_commission_percentage?.toString() || "",
+        reportFrequency: settings?.report_frequency || "daily",
+        municipalities: Array.isArray(settings?.municipalities) ? settings.municipalities : [],
+        logos: settings?.logos || {},
+        reportDetails: settings?.report_details || {
+            bookkeeper: { name: "", title: "", signature: null },
+            manager: { name: "", title: "", signature: null }
+        },
+        winnerNames: Array.isArray(settings?.winner_names) ? settings.winner_names.join("\n") : ""
+    };
+};
+
+export const updateCompanySettings = async (
+    companyId: number, 
+    data: { 
+        name: string; 
+        province: string; 
+        city: string; 
+        status: string; 
+        prizeFundPercentage: string; 
+        agentCommissionPercentage: string; 
+        reportFrequency: string;
+        municipalities?: string[];
+        logos?: Record<string, any>;
+        reportDetails?: Record<string, any>;
+        winnerNames?: string;
+    }
+) => {
+    if (!databaseEnabled()) return;
+    
+    // Update company name
+    if (data.name) {
+        await supabase
+            .from("companies")
+            .update({ name: data.name })
+            .eq("id", companyId);
+    }
+    
+    // Upsert settings
+    const { error } = await supabase
+        .from("company_settings")
+        .upsert({
+            company_id: companyId,
+            province: data.province,
+            city: data.city,
+            status: data.status,
+            prize_fund_percentage: data.prizeFundPercentage ? parseFloat(data.prizeFundPercentage) : null,
+            agent_commission_percentage: data.agentCommissionPercentage ? parseFloat(data.agentCommissionPercentage) : null,
+            report_frequency: data.reportFrequency,
+            municipalities: data.municipalities || [],
+            logos: data.logos || {},
+            report_details: data.reportDetails || {},
+            winner_names: data.winnerNames ? data.winnerNames.split("\n").map(n => n.trim()).filter(Boolean) : []
+        }, { onConflict: 'company_id' });
+        
+    if (error) throw error;
+};
+
+export const getDefaultLogosFromDatabase = async (): Promise<{ leftLogo?: string | null; rightLogo?: string | null }> => {
+    if (!databaseEnabled()) return {};
+    try {
+        const { data, error } = await supabase
+            .from("company_settings")
+            .select("logos")
+            .limit(1)
+            .maybeSingle();
+
+        if (error || !data || !data.logos) return {};
+        return {
+            leftLogo: data.logos.leftLogo || data.logos.companyLogo || null,
+            rightLogo: data.logos.rightLogo || data.logos.stlLogo || null
+        };
+    } catch (error) {
+        console.error("Failed to load default logos:", error);
+        return {};
+    }
 };

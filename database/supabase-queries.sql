@@ -79,6 +79,35 @@ SET name = :name,
 WHERE id = :company_id
 RETURNING id, name, code, address, contact_email, contact_phone, updated_at;
 
+-- COMPANY SETTINGS
+
+INSERT INTO company_settings (
+    company_id, province, city, status, prize_fund_percentage, 
+    agent_commission_percentage, report_frequency, logos, 
+    municipalities, report_details, winner_names
+)
+VALUES (
+    :company_id, :province, :city, :status, :prize_fund_percentage, 
+    :agent_commission_percentage, :report_frequency, :logos, 
+    :municipalities, :report_details, :winner_names
+)
+ON CONFLICT (company_id) 
+DO UPDATE SET 
+    province = EXCLUDED.province,
+    city = EXCLUDED.city,
+    status = EXCLUDED.status,
+    prize_fund_percentage = EXCLUDED.prize_fund_percentage,
+    agent_commission_percentage = EXCLUDED.agent_commission_percentage,
+    report_frequency = EXCLUDED.report_frequency,
+    logos = EXCLUDED.logos,
+    municipalities = EXCLUDED.municipalities,
+    report_details = EXCLUDED.report_details,
+    winner_names = EXCLUDED.winner_names,
+    updated_at = now()
+RETURNING *;
+
+SELECT * FROM company_settings WHERE company_id = :company_id LIMIT 1;
+
 -- GAME TYPES
 
 INSERT INTO game_types (

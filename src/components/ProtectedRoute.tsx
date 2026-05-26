@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { UserMenu } from '@/components/UserMenu';
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     const { user, isLoading } = useAuth();
@@ -16,5 +17,10 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
         return <Navigate to="/login" replace />;
     }
 
-    return <>{children}</>;
+    return (
+        <>
+            <UserMenu />
+            {children}
+        </>
+    );
 };

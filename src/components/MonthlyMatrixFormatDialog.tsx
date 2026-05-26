@@ -5,45 +5,65 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileStack, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { exportMatrixFormat } from "@/utils/matrixFormatExport";
 
-export const MonthlyMatrixFormatDialog = ({ open, onOpenChange }: any) => {
+export const MonthlyMatrixFormatDialog = ({ open, onOpenChange, batches }: any) => {
     const [isExporting, setIsExporting] = useState(false);
 
-    const handleExport = () => {
+    const handleExport = async () => {
         setIsExporting(true);
-        setTimeout(() => {
+        try {
+            const monthBatches = (batches || []).filter((b: any) => b.status === 'generated' || b.status === 'approved');
+            if (monthBatches.length === 0) {
+                toast.error("No valid batches found for this month");
+                return;
+            }
+
+            const batchData = JSON.parse(localStorage.getItem(`batch_data_${monthBatches[0].id}`) || 'null');
+            if (batchData) {
+                await exportMatrixFormat(batchData);
+                toast.success("Matrix Format Report exported");
+            } else {
+                toast.error("Batch data not found in storage");
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error("Export failed");
+        } finally {
             setIsExporting(false);
-            toast.success("Matrix Format Report exported");
             onOpenChange(false);
-        }, 1500);
+        }
     };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md bg-white text-slate-950">
                 <DialogHeader>
-                    <DialogTitle>Export Matrix Format Report</DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle className="flex items-center gap-2 font-black uppercase text-slate-900">
+                        <FileStack className="h-5 w-5 text-[#f7b500]" />
+                        Export Matrix Format Report
+                    </DialogTitle>
+                    <DialogDescription className="text-sm text-slate-500">
                         Generate the matrix format report for regulatory submission.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                        <Label>Reporting Period</Label>
+                        <Label className="text-xs font-bold text-slate-600">Reporting Period</Label>
                         <Select defaultValue="current">
-                            <SelectTrigger>
+                            <SelectTrigger className="border-slate-200 bg-slate-50 font-semibold text-slate-900">
                                 <SelectValue placeholder="Select period" />
                             </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="current">Current Month (March 2026)</SelectItem>
-                                <SelectItem value="prev">Previous Month</SelectItem>
+                            <SelectContent className="bg-white">
+                                <SelectItem value="current" className="cursor-pointer font-semibold text-slate-700 hover:bg-slate-100">Current Month (March 2026)</SelectItem>
+                                <SelectItem value="prev" className="cursor-pointer font-semibold text-slate-700 hover:bg-slate-100">Previous Month</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
                 </div>
-                <DialogFooter className="sm:justify-end">
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleExport} disabled={isExporting} className="gap-2">
+                <DialogFooter className="gap-2 sm:justify-end">
+                    <Button variant="outline" onClick={() => onOpenChange(false)} className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50">Cancel</Button>
+                    <Button onClick={handleExport} disabled={isExporting} className="gap-2 bg-[#f7b500] font-bold text-slate-950 hover:bg-[#e6a600]">
                         {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileStack className="h-4 w-4" />}
                         Generate Matrix
                     </Button>

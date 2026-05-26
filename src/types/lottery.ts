@@ -5,11 +5,25 @@ export interface GameType {
     multiplier: number;
     time?: string;
     isNational: boolean;
-    gameFormat?: 'standard' | '3D' | 'L3D';
+    gameFormat?: 'standard' | '3D' | 'L3D' | 'L2';
     numberRangeMin?: number;
     numberRangeMax?: number;
     ekisMultiplier?: number;
     rumbleMultiplier?: number;
+}
+
+export interface Batch {
+    id: string;
+    name: string;
+    province: string;
+    date: string;
+    booklets: number;
+    revenue: string;
+    createdAt: string;
+    createdBy: string;
+    status: "pending" | "generated" | "approved";
+    total_revenue?: number;
+    total_payout?: number;
 }
 
 export interface NumberBet {
@@ -19,6 +33,9 @@ export interface NumberBet {
     gameTypeId: string;
     gameTypeName: string;
     gameTypeTime?: string;
+    payout?: number;
+    payoutAmount?: number;
+    win?: number;
 }
 
 export interface Ticket {

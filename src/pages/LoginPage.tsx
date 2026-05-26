@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
@@ -6,14 +6,30 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Eye, EyeOff, LogIn, Moon } from "lucide-react";
+import { getDefaultLogosFromDatabase } from "@/lib/database";
 
 export const LoginPage = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const { login } = useAuth();
+    const [logos, setLogos] = useState<{ leftLogo?: string | null; rightLogo?: string | null }>({});
+    const { login, user, isLoading } = useAuth();
     const navigate = useNavigate();
+
+    useEffect(() => {
+        const loadLogos = async () => {
+            const defaultLogos = await getDefaultLogosFromDatabase();
+            setLogos(defaultLogos);
+        };
+        loadLogos();
+    }, []);
+
+    useEffect(() => {
+        if (user && !isLoading) {
+            navigate("/");
+        }
+    }, [user, isLoading, navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -43,17 +59,12 @@ export const LoginPage = () => {
 
             <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[1.05fr_0.95fr]">
                 <section className="relative hidden min-h-screen items-center justify-center overflow-hidden bg-[#fff7d8] lg:flex">
-                    <div className="absolute inset-y-0 left-[9%] w-[58%]">
-                        <div className="absolute left-0 top-0 h-[72%] w-36 rounded-b-[44px] rounded-t-[44px] bg-slate-500/10 blur-[1px]" />
-                        <div className="absolute left-0 top-0 h-36 w-[84%] rounded-r-[44px] bg-slate-500/10 blur-[1px]" />
-                        <div className="absolute bottom-0 left-0 h-36 w-[84%] rounded-r-[44px] bg-red-400/10 blur-[1px]" />
-                        <div className="absolute left-[46%] top-[43%] h-[47%] w-36 bg-red-400/10 blur-[1px]" />
-                        <div className="absolute right-0 top-[28%] h-[43%] w-36 rounded-r-[44px] bg-yellow-300/15 blur-[1px]" />
-                        <div className="absolute left-[14%] top-[14%] h-[43%] w-[70%] rounded-tr-[44px] border-[86px] border-b-0 border-l-0 border-yellow-300/14 blur-[1px]" />
-                    </div>
-
                     <div className="relative z-10 flex w-full max-w-[640px] flex-col items-center text-center">
-                        <LogoMark className="mb-7 h-36 w-36" />
+                        {logos.rightLogo ? (
+                            <img src={logos.rightLogo} alt="STL Logo" className="mb-7 h-36 w-36 object-contain" />
+                        ) : (
+                            <LogoMark className="mb-7 h-36 w-36" />
+                        )}
                         <p className="mb-5 text-4xl font-black uppercase tracking-wide text-[#f7b500]">Welcome To</p>
                         <h1 className="mb-7 text-5xl font-black uppercase tracking-wide text-slate-950">STL Ticket System</h1>
                         <p className="max-w-[520px] text-2xl leading-snug text-slate-600">
@@ -65,7 +76,11 @@ export const LoginPage = () => {
                 <section className="flex min-h-screen items-center justify-center px-5 py-16 lg:px-12">
                     <div className="w-full max-w-[505px]">
                         <div className="mb-10 text-center">
-                            <LogoSwirl className="mx-auto mb-6 h-14 w-14" />
+                            {logos.leftLogo ? (
+                                <img src={logos.leftLogo} alt="Company Logo" className="mx-auto mb-6 h-14 w-14 object-contain" />
+                            ) : (
+                                <LogoSwirl className="mx-auto mb-6 h-14 w-14" />
+                            )}
                             <h2 className="mb-4 text-3xl font-black uppercase tracking-wide text-[#f7b500]">Sign In</h2>
                             <p className="text-xl text-slate-600">Enter your credentials to continue</p>
                         </div>
@@ -126,7 +141,7 @@ export const LoginPage = () => {
                         </form>
 
                         <p className="mt-10 text-center text-base text-slate-600">
-                            Powered by <span className="font-black text-slate-950">PJC Tech Solutions Incorporated</span>
+                            Powered by <span className="font-black text-slate-950">RKD Tech Solutions Inc.</span>
                         </p>
                     </div>
                 </section>
