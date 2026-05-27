@@ -324,7 +324,8 @@ export function formatCellValue(value: any, numFmt?: string): string {
         // Currency format
         if (numFmt.includes('₱') || numFmt.includes('$')) {
             const symbol = numFmt.includes('₱') ? '₱' : '$';
-            return `${symbol}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            const hasDecimals = numFmt.includes('.00');
+            return `${symbol}${value.toLocaleString(undefined, { minimumFractionDigits: hasDecimals ? 2 : 0, maximumFractionDigits: hasDecimals ? 2 : 0 })}`;
         }
 
         // Percentage

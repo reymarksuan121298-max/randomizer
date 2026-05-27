@@ -11,7 +11,14 @@ const FILIPINO_FIRST_NAMES = [
     "Maria", "Ana", "Teresa", "Josefina", "Carmen", "Loida", "Lourdes", "Elizabeth", "Corazon", "Imelda", 
     "Gloria", "Susan", "Evelyn", "Fe", "Erlinda", "Norma", "Yolanda", "Leonora", "Dolores", "Mercy", 
     "Jessica", "Jennifer", "Joy", "Mary", "Grace", "Sarah", "Patricia", "Bianca", "Angel", "Kyla", 
-    "Andrea", "Sophia", "Chloe", "Nicole", "Samantha", "Jasmine", "Angela", "Christine", "Camille", "Cherry"
+    "Andrea", "Sophia", "Chloe", "Nicole", "Samantha", "Jasmine", "Angela", "Christine", "Camille", "Cherry",
+    "Aaron", "Adrian", "Andrew", "Anthony", "Arthur", "Benjamin", "Bryan", "Carlo", "Charles", "Dennis",
+    "Edgar", "Elias", "Emilio", "Enrico", "Ernesto", "Eugene", "Felix", "Gabriel", "Gary", "George",
+    "Hector", "Ian", "Ivan", "Jerome", "Joel", "Julius", "Kevin", "Lawrence", "Leo", "Louie",
+    "Marlon", "Marvin", "Matthew", "Oliver", "Patrick", "Paul", "Peter", "Philip", "Ramon", "Raymund",
+    "Almira", "Amelia", "Anita", "Aurora", "Belen", "Celia", "Clarissa", "Concepcion", "Cristina", "Cynthia",
+    "Diana", "Elena", "Elisa", "Emma", "Estrella", "Fatima", "Flora", "Gina", "Glenda", "Hazel",
+    "Irene", "Isabel", "Jocelyn", "Juliet", "Karen", "Leticia", "Liza", "Lorena", "Luz", "Lydia"
 ];
 
 const FILIPINO_LAST_NAMES = [
@@ -19,14 +26,66 @@ const FILIPINO_LAST_NAMES = [
     "Flores", "Gonzales", "Castillo", "Dizon", "Castro", "Hernandez", "Salazar", "Perez", "Valenzuela", "Del Rosario", 
     "Santiago", "Pascual", "Tolentino", "Soriano", "Marcos", "de Guzman", "Villanueva", "Mercado", "Espiritu", "Macaraeg", 
     "Dimaculangan", "Catacutan", "Agoncillo", "Laurel", "Recto", "Quezon", "Roxas", "Osmeña", "Duterte", "Robredo", 
-    "Binay", "Poe", "Villar", "Cayetano", "Sotto", "Pacquiao", "Revilla", "Lapid"
+    "Binay", "Poe", "Villar", "Cayetano", "Sotto", "Pacquiao", "Revilla", "Lapid", "Abad", "Agustin",
+    "Alcantara", "Alonzo", "Alvarez", "Amador", "Andal", "Angeles", "Antonio", "Arce", "Arevalo", "Arias",
+    "Asuncion", "Atienza", "Avila", "Ayala", "Bacani", "Balagtas", "Baltazar", "Banal", "Barrios", "Batac",
+    "Bautista", "Bermudez", "Bernardo", "Blanco", "Briones", "Buenaflor", "Buenaventura", "Cabrera", "Calderon", "Camacho",
+    "Cano", "Capulong", "Cardenas", "Carlos", "Carpio", "Casimiro", "Castaneda", "Cervantes", "Chavez", "Clemente"
 ];
 
 const DEFAULT_FILIPINO_NAMES: string[] = (() => {
     const namesSet = new Set<string>();
-    while (namesSet.size < 550) {
+    while (namesSet.size < 1000) {
         const first = FILIPINO_FIRST_NAMES[Math.floor(Math.random() * FILIPINO_FIRST_NAMES.length)];
         const last = FILIPINO_LAST_NAMES[Math.floor(Math.random() * FILIPINO_LAST_NAMES.length)];
+        namesSet.add(`${first} ${last}`);
+    }
+    return Array.from(namesSet);
+})();
+
+const MARANAO_FIRST_NAMES = [
+    "Muhammad", "Ahmad", "Ali", "Hassan", "Hussein", "Ibrahim", "Ismail", "Yusuf", "Abdul", "Rahman",
+    "Fatima", "Aisha", "Khadija", "Zainab", "Maryam", "Amina", "Safiya", "Halima", "Salma", "Yasmin",
+    "Nor", "Sittie", "Johary", "Alnor", "Aslimah", "Asnia", "Johanie", "Jalilah", "Jamal", "Jamil",
+    "Samer", "Nasrudin", "Mohamad", "Amin", "Jabar", "Nabil", "Farid", "Hakim", "Karim", "Latif",
+    "Said", "Majid", "Jalal", "Najib", "Rashid", "Tahir", "Zaki", "Malik", "Faisal", "Imran",
+    "Anwar", "Harun", "Yahya", "Idris", "Isa", "Musa", "Sulaiman", "Dawud", "Ayyub", "Yunus",
+    "Zakariya", "Ilyas", "Alyas", "Mansur", "Habib", "Nizam", "Qasim", "Riad", "Salim", "Tariq",
+    "Umar", "Waleed", "Yasin", "Zain", "Asad", "Nadia", "Samira", "Soraya", "Farah", "Laila",
+    "Huda", "Rania", "Sana", "Zara", "Amira", "Muna", "Nur", "Reem", "Salwa", "Wafa",
+    "Dalila", "Faten", "Ghada", "Hana", "Ibtisam", "Jihan", "Karima", "Lina", "Maha", "Nada",
+    "Omnia", "Qamar", "Rasha", "Siham", "Tahira", "Widad", "Yusra", "Zahra", "Aaliyah", "Basma"
+];
+
+const MARANAO_LAST_NAMES = [
+    "Macarambon", "Dimaporo", "Alonto", "Lucman", "Pangandaman", "Sinsuat", "Matalam", "Pendatun", "Mastura", "Sangcopan",
+    "Pangarungan", "Balindong", "Adiong", "Salic", "Tomawis", "Datu", "Ali", "Usman", "Ibrahim", "Hassan",
+    "Abdul", "Rahman", "Abas", "Mohammad", "Abdullah", "Macadato", "Macalabo", "Batugan", "Pindolonan", "Guro",
+    "Ampatuan", "Mangudadatu", "Sali", "Bato", "Muti", "Pompong", "Ranao", "Maruhom", "Gani", "Omar",
+    "Abubakar", "Ismael", "Yusoph", "Karim", "Hashim", "Jamalul", "Kiram", "Taha", "Tahir", "Majid",
+    "Hamid", "Rasul", "Sani", "Alih", "Ambor", "Bara", "Barua", "Basman", "Benito", "Dianalan",
+    "Disomimba", "Ganda", "Hadji", "Jamil", "Lantud", "Macapaar", "Mamarinta", "Marohombsar", "Matanog", "Mindalano",
+    "Mutia", "Naga", "Nuro", "Pacasum", "Panandigan", "Pandita", "Pili", "Radiamoda", "Rominimbang", "Sabal",
+    "Sambarani", "Sarip", "Solaiman", "Sultan", "Taha", "Tanggol", "Tawano", "Unte", "Usop", "Yahya"
+];
+
+const DEFAULT_MARANAO_NAMES: string[] = (() => {
+    const namesSet = new Set<string>();
+    while (namesSet.size < 1000) {
+        const first = MARANAO_FIRST_NAMES[Math.floor(Math.random() * MARANAO_FIRST_NAMES.length)];
+        const last = MARANAO_LAST_NAMES[Math.floor(Math.random() * MARANAO_LAST_NAMES.length)];
+        namesSet.add(`${first} ${last}`);
+    }
+    return Array.from(namesSet);
+})();
+
+const DEFAULT_MAGUINDANAO_NAMES: string[] = (() => {
+    const namesSet = new Set<string>();
+    const COMBINED_FIRST_NAMES = [...MARANAO_FIRST_NAMES, ...FILIPINO_FIRST_NAMES];
+    const COMBINED_LAST_NAMES = [...MARANAO_LAST_NAMES, ...FILIPINO_LAST_NAMES];
+    while (namesSet.size < 1000) {
+        const first = COMBINED_FIRST_NAMES[Math.floor(Math.random() * COMBINED_FIRST_NAMES.length)];
+        const last = COMBINED_LAST_NAMES[Math.floor(Math.random() * COMBINED_LAST_NAMES.length)];
         namesSet.add(`${first} ${last}`);
     }
     return Array.from(namesSet);
@@ -383,7 +442,7 @@ function addBookletSheet(workbook: ExcelJS.Workbook, batch: BookletBatch, bookle
 
     sheet.getRow(9).values = [`BOOKLET ${booklet.bookletNumber}`, 'SERIAL NUMBER', '', 'COMB.', 'BET.', 'COMB.', 'BET.', 'COMB.', 'BET.', 'TOTAL GROSS'];
     sheet.getRow(10).values = ['', '', '', '', '', '', '', '', '', { formula: `SUM(F13:F262,H13:H262,J13:J262)`, result: booklet.revenue }];
-    sheet.getCell('J10').numFmt = currencyFmt;
+    sheet.getCell('J10').numFmt = '₱#,##0';
     sheet.getCell('J10').font = { bold: true, color: { argb: COLORS.profit } };
     sheet.getRow(9).font = { bold: true };
     sheet.getRow(9).fill = solid(COLORS.lightBlue);
@@ -391,6 +450,11 @@ function addBookletSheet(workbook: ExcelJS.Workbook, batch: BookletBatch, bookle
     header(sheet.getRow(12), ['GAME TYPE', 'TIME', 'SERIAL NUMBER', 'LETTER', 'COMB.', 'BET.', 'COMB.', 'BET.', 'COMB.', 'BET.'], COLORS.blue);
 
     const bookletRows = report.rows.filter((row) => row.bookletNumber === booklet.bookletNumber);
+    bookletRows.sort((a, b) => {
+        if (a.sheetNumber !== b.sheetNumber) return a.sheetNumber - b.sheetNumber;
+        return b.ticket.label.localeCompare(a.ticket.label);
+    });
+
     bookletRows.forEach((entry, index) => {
         const rowNumber = 13 + index;
         const row = sheet.getRow(rowNumber);
@@ -506,9 +570,16 @@ function buildReportData(batch: BookletBatch, winnerNames: string[] = []): Repor
     const winningNumberMap = new Map<string, { game: string; time: string; type: string; number: string }>();
     const configuredWinners = ((batch as any).winningNumbers || {}) as Record<string, string>;
 
+    const isLanaoSur = (batch.province?.toLowerCase() || "").includes("lanaosur") || (batch.name?.toLowerCase() || "").includes("lanaosur");
+    const isMaguindanao = (batch.province?.toLowerCase() || "").includes("maguindanao") || (batch.name?.toLowerCase() || "").includes("maguindanao");
+    
+    let defaultNamesToUse = DEFAULT_FILIPINO_NAMES;
+    if (isLanaoSur) defaultNamesToUse = DEFAULT_MARANAO_NAMES;
+    if (isMaguindanao) defaultNamesToUse = DEFAULT_MAGUINDANAO_NAMES;
+
     const shuffledNames = winnerNames && winnerNames.length > 0 
         ? [...winnerNames].sort(() => Math.random() - 0.5) 
-        : [...DEFAULT_FILIPINO_NAMES].sort(() => Math.random() - 0.5);
+        : [...defaultNamesToUse].sort(() => Math.random() - 0.5);
     let nameIndex = 0;
     const getRandomWinnerName = () => {
         const name = shuffledNames[nameIndex % shuffledNames.length];

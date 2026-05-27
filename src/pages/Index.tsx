@@ -347,8 +347,8 @@ const Index = () => {
                                     <p className="mt-1 text-[9px] text-slate-500">Enter winning numbers if you want to allocate a specific total payout</p>
                                 </div>
                                 <div className="flex items-center gap-1.5 mt-0.5 rounded-md border border-slate-200 bg-white px-2 py-1 shadow-sm">
-                                    <input 
-                                        type="checkbox" 
+                                    <input
+                                        type="checkbox"
                                         id="disable-local"
                                         checked={disableLocal}
                                         onChange={(e) => setDisableLocal(e.target.checked)}
@@ -394,23 +394,23 @@ const Index = () => {
                                         <h4 className="mb-2 text-[9px] font-black uppercase text-[#f6b719]">Booklet {i + 1}</h4>
                                         <div className="grid grid-cols-2 gap-2">
                                             <Field label="Serial Start" helper="Range: 250 serials">
-                                                <Input 
-                                                    value={serialStarts[i] || ""} 
+                                                <Input
+                                                    value={serialStarts[i] || ""}
                                                     onChange={(e) => {
                                                         if (i === 0) {
                                                             handleMainSerialStartChange(e.target.value);
                                                         } else {
                                                             handleBookletSerialChange(i, e.target.value);
                                                         }
-                                                    }} 
-                                                    className="h-8 text-[10px]" 
+                                                    }}
+                                                    className="h-8 text-[10px]"
                                                 />
                                             </Field>
                                             <Field label="Serial End" helper="&nbsp;">
-                                                <Input 
-                                                    value={endNum.toString()} 
-                                                    readOnly 
-                                                    className="h-8 text-[10px]" 
+                                                <Input
+                                                    value={endNum.toString()}
+                                                    readOnly
+                                                    className="h-8 text-[10px]"
                                                 />
                                             </Field>
                                         </div>

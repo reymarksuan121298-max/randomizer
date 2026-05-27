@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import type { BookletBatch, Sheet, Ticket } from "@/types/lottery";
+import type { BookletBatch, Booklet, Sheet, Ticket } from "@/types/lottery";
+import { getGameTypes } from "@/data/gameTypes";
 
 const ALL_DRAW_TIMES = [
     { time: "10:30 AM", type: "LOC" },
@@ -36,10 +37,10 @@ export const SheetList = ({
 
     // Gather all sheets
     const allSheets = useMemo(() => {
-        const sheets: { booklet: number; sheet: Sheet }[] = [];
+        const sheets: { booklet: Booklet; sheet: Sheet }[] = [];
         bookletsToProcess.forEach((b) => {
             b.sheets.forEach((s) => {
-                sheets.push({ booklet: b.bookletNumber, sheet: s });
+                sheets.push({ booklet: b, sheet: s });
             });
         });
         return sheets;
@@ -115,8 +116,10 @@ export const SheetList = ({
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {filteredSheets.map((s, i) => (
                     <SheetCardDetail
-                        key={`${s.booklet}-${s.sheet.id}-${i}`}
+                        key={`${s.booklet.bookletNumber}-${s.sheet.id}-${i}`}
                         sheet={s.sheet}
+                        booklet={s.booklet}
+                        companyName={batch.province || batch.name || ""}
                         onDataChange={onDataChange}
                     />
                 ))}
@@ -125,7 +128,7 @@ export const SheetList = ({
     );
 };
 
-const SheetCardDetail = ({ sheet, onDataChange }: { sheet: Sheet; onDataChange?: () => void }) => {
+const SheetCardDetail = ({ sheet, booklet, companyName, onDataChange }: { sheet: Sheet; booklet: Booklet; companyName: string; onDataChange?: () => void }) => {
     const sortedTickets = [...sheet.tickets].sort((a, b) => b.label.localeCompare(a.label));
     
     const serials = sheet.tickets
@@ -158,14 +161,14 @@ const SheetCardDetail = ({ sheet, onDataChange }: { sheet: Sheet; onDataChange?:
             
             <div className="space-y-6 flex-1">
                 {sortedTickets.map((ticket) => (
-                    <TicketRow key={ticket.label} ticket={ticket} onDataChange={onDataChange} />
+                    <TicketRow key={ticket.label} ticket={ticket} booklet={booklet} companyName={companyName} onDataChange={onDataChange} />
                 ))}
             </div>
         </div>
     );
 };
 
-const TicketRow = ({ ticket, onDataChange }: { ticket: Ticket; onDataChange?: () => void }) => {
+const TicketRow = ({ ticket, booklet, companyName, onDataChange }: { ticket: Ticket; booklet: Booklet; companyName: string; onDataChange?: () => void }) => {
     const bets = ticket.numberBets;
     const ticketTotal = bets.reduce((s, nb) => s + nb.bet, 0);
     
@@ -184,15 +187,15 @@ const TicketRow = ({ ticket, onDataChange }: { ticket: Ticket; onDataChange?: ()
             </div>
 
             <div className="grid grid-cols-3 gap-2">
-                <BetSlot bet={slot1} onDataChange={onDataChange} />
-                <BetSlot bet={slot2} onDataChange={onDataChange} />
-                <BetSlot bet={slot3} onDataChange={onDataChange} />
+                <BetSlot bet={slot1} booklet={booklet} companyName={companyName} onDataChange={onDataChange} />
+                <BetSlot bet={slot2} booklet={booklet} companyName={companyName} onDataChange={onDataChange} />
+                <BetSlot bet={slot3} booklet={booklet} companyName={companyName} onDataChange={onDataChange} />
             </div>
         </div>
     );
 };
 
-const BetSlot = ({ bet, onDataChange }: { bet?: any; onDataChange?: () => void }) => {
+const BetSlot = ({ bet, booklet, companyName, onDataChange }: { bet?: any; booklet: Booklet; companyName: string; onDataChange?: () => void }) => {
     if (!bet) {
         return (
             <div className="flex flex-col items-center justify-center rounded-sm border border-slate-100 bg-slate-50/50 py-3 h-24">
@@ -203,6 +206,14 @@ const BetSlot = ({ bet, onDataChange }: { bet?: any; onDataChange?: () => void }
     const isWinner = bet.payout && bet.payout > 0;
     const boxColor = isWinner ? "border-2 border-[#f7b500] bg-[#fffcf2] animate-glow" : "border border-white bg-white shadow-sm";
     const titleColor = isWinner ? "text-slate-700" : "text-[#f7b500]";
+    
+    // Find dynamic multiplier
+    const gameTypes = getGameTypes(companyName);
+    const gt = gameTypes.find(g => g.id === bet.gameTypeId);
+    let actualMultiplier = gt ? gt.multiplier : 500;
+    if (isWinner && bet.bet > 0) {
+        actualMultiplier = bet.payout / bet.bet;
+    }
     
     return (
         <div className={`flex flex-col items-center justify-start rounded-lg ${boxColor} py-3 relative min-h-[7rem]`}>
@@ -226,6 +237,51 @@ const BetSlot = ({ bet, onDataChange }: { bet?: any; onDataChange?: () => void }
                     value={bet.bet}
                     onChange={(e) => {
                         const val = parseInt(e.target.value) || 0;
+                        const diff = val - bet.bet;
+                        
+                        if (diff !== 0) {
+                            let remainingDiff = -diff;
+                            
+                            // Gather candidates in the same booklet to balance the revenue
+                            const candidates: any[] = [];
+                            booklet.sheets.forEach(s => {
+                                s.tickets.forEach(t => {
+                                    t.numberBets.forEach(nb => {
+                                        if (nb !== bet && (!nb.payout || nb.payout === 0)) {
+                                            candidates.push(nb);
+                                        }
+                                    });
+                                });
+                            });
+                            
+                            // If we are subtracting from others (diff > 0 -> remainingDiff < 0)
+                            // prefer subtracting from the largest bets first to avoid hitting the 1 min limit.
+                            if (remainingDiff < 0) {
+                                candidates.sort((a, b) => b.bet - a.bet);
+                            }
+                            
+                            for (const c of candidates) {
+                                if (remainingDiff === 0) break;
+                                
+                                if (remainingDiff < 0) {
+                                    const canSubtract = c.bet - 1;
+                                    if (canSubtract > 0) {
+                                        const sub = Math.min(canSubtract, -remainingDiff);
+                                        c.bet -= sub;
+                                        remainingDiff += sub;
+                                    }
+                                } else {
+                                    c.bet += remainingDiff;
+                                    remainingDiff = 0;
+                                }
+                            }
+                        }
+                        
+                        if (isWinner) {
+                            bet.payout = val * actualMultiplier;
+                            bet.payoutAmount = val * actualMultiplier;
+                            if (bet.win !== undefined) bet.win = val * actualMultiplier;
+                        }
                         bet.bet = val;
                         if (onDataChange) onDataChange();
                     }}
@@ -238,7 +294,7 @@ const BetSlot = ({ bet, onDataChange }: { bet?: any; onDataChange?: () => void }
                         Win: <span className="text-slate-800">₱{bet.payout.toLocaleString()}</span>
                     </div>
                     <div className="text-[8px] text-slate-400 mt-0.5">
-                        (500x)
+                        ({actualMultiplier}x)
                     </div>
                 </div>
             )}

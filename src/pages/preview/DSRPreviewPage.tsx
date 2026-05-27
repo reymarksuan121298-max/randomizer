@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Download, Loader2 } from "lucide-react";
@@ -11,6 +11,9 @@ import { saveAs } from "file-saver";
 export const DSRPreviewPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const bookletParam = searchParams.get("booklet");
+    const selectedBookletIdx = bookletParam !== null ? Number(bookletParam) : -1;
     const [batchData, setBatchData] = useState<BookletBatch | null>(null);
     const [isExporting, setIsExporting] = useState(false);
 
@@ -39,6 +42,13 @@ export const DSRPreviewPage = () => {
 
     if (!batchData) return <div className="p-8 text-center"><Loader2 className="animate-spin inline mr-2" /> Loading...</div>;
 
+    const visibleBooklets = selectedBookletIdx === -1
+        ? batchData.booklets
+        : [batchData.booklets[selectedBookletIdx]].filter(Boolean);
+    const visibleTotalSales = visibleBooklets.reduce((s, b) => s + (b.revenue || 0), 0);
+    const visibleTotalPayout = visibleBooklets.reduce((s, b) => s + (b.payout || 0), 0);
+    const bookletLabel = selectedBookletIdx === -1 ? "All Booklets" : `Booklet ${selectedBookletIdx + 1}`;
+
     return (
         <div className="container mx-auto py-8 px-4">
             <div className="flex justify-between items-center mb-8">
@@ -46,7 +56,7 @@ export const DSRPreviewPage = () => {
                     <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
-                    <h1 className="text-3xl font-bold">DSR Preview: {batchData.name}</h1>
+                    <h1 className="text-3xl font-bold">DSR Preview: {batchData.name} — {bookletLabel}</h1>
                 </div>
                 <Button onClick={handleDownload} disabled={isExporting}>
                     <Download className="h-4 w-4 mr-2" /> Download DSR Excel
@@ -72,23 +82,26 @@ export const DSRPreviewPage = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {batchData.booklets.map((b, idx) => (
-                                    <tr key={idx}>
-                                        <td className="border border-black p-2 text-center">{idx + 1}</td>
-                                        <td className="border border-black p-2 text-right">₱{b.revenue.toLocaleString()}</td>
-                                        <td className="border border-black p-2 text-right">₱{(b.payout || 0).toLocaleString()}</td>
-                                        <td className="border border-black p-2 text-right">₱{(b.revenue - (b.payout || 0)).toLocaleString()}</td>
-                                    </tr>
-                                ))}
+                                {visibleBooklets.map((b, idx) => {
+                                    const realIdx = selectedBookletIdx === -1 ? idx : selectedBookletIdx;
+                                    return (
+                                        <tr key={realIdx}>
+                                            <td className="border border-black p-2 text-center">{realIdx + 1}</td>
+                                            <td className="border border-black p-2 text-right">₱{(b.revenue || 0).toLocaleString()}</td>
+                                            <td className="border border-black p-2 text-right">₱{(b.payout || 0).toLocaleString()}</td>
+                                            <td className="border border-black p-2 text-right">₱{((b.revenue || 0) - (b.payout || 0)).toLocaleString()}</td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
-                            tfoot: {
+                            <tfoot>
                                 <tr className="font-bold bg-gray-200">
                                     <td className="border border-black p-2 text-center">TOTALS</td>
-                                    <td className="border border-black p-2 text-right">₱{batchData.grandTotalBets.toLocaleString()}</td>
-                                    <td className="border border-black p-2 text-right">₱{(batchData.totalPayout || 0).toLocaleString()}</td>
-                                    <td className="border border-black p-2 text-right">₱{(batchData.grandTotalBets - (batchData.totalPayout || 0)).toLocaleString()}</td>
+                                    <td className="border border-black p-2 text-right">₱{visibleTotalSales.toLocaleString()}</td>
+                                    <td className="border border-black p-2 text-right">₱{visibleTotalPayout.toLocaleString()}</td>
+                                    <td className="border border-black p-2 text-right">₱{(visibleTotalSales - visibleTotalPayout).toLocaleString()}</td>
                                 </tr>
-                            }
+                            </tfoot>
                         </table>
                     </div>
                 </CardContent>

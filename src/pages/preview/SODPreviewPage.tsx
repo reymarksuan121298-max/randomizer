@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Download, Loader2 } from "lucide-react";
@@ -11,6 +11,9 @@ import { saveAs } from "file-saver";
 export const SODPreviewPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const bookletParam = searchParams.get("booklet");
+    const selectedBookletIdx = bookletParam !== null ? Number(bookletParam) : 0;
     const [batchData, setBatchData] = useState<BookletBatch | null>(null);
     const [isExporting, setIsExporting] = useState(false);
 
@@ -46,7 +49,7 @@ export const SODPreviewPage = () => {
                     <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
-                    <h1 className="text-3xl font-bold">SOD Preview: {batchData.name}</h1>
+                    <h1 className="text-3xl font-bold">SOD Preview: {batchData.name} — Booklet {selectedBookletIdx + 1}</h1>
                 </div>
                 <Button onClick={handleDownload} disabled={isExporting}>
                     <Download className="h-4 w-4 mr-2" /> Download SOD Excel
@@ -67,7 +70,7 @@ export const SODPreviewPage = () => {
                             <div className="text-right">STATUS</div>
                         </div>
                         <div className="space-y-1">
-                            {batchData.booklets[0]?.sheets.map(s => (
+                            {(batchData.booklets[selectedBookletIdx]?.sheets ?? []).map(s => (
                                 <div key={s.id} className="grid grid-cols-3 border-b border-dotted pb-1">
                                     <div>{s.id}</div>
                                     <div className="text-right">₱{s.tickets.reduce((sum, t) => sum + t.numberBets.reduce((sb, nb) => sb + nb.bet, 0), 0).toLocaleString()}</div>

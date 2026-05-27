@@ -56,7 +56,7 @@ export const getGameTypes = (company: string = ""): GameType[] => {
     
     if (lower.includes("glowing") || lower.includes("lanaosur") || lower.includes("lanaonorte")) {
         // These managers simply don't have the game
-        return defaultGameTypes.filter(gt => !gt.name.includes("Swer3L2"));
+        return defaultGameTypes.filter(gt => !gt.name.includes("Swer3L2") && !gt.name.includes("3DL2"));
     }
     
     return defaultGameTypes;

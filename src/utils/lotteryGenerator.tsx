@@ -529,6 +529,11 @@ function allocateExactPayout(
     let totalPayoutAllocated = 0;
     const selectedSlots: Array<{ slot: typeof allSlots[0] }> = [];
     const ticketGameTypeUsage = new Set<string>();
+    
+    // Track payout per booklet to distribute evenly
+    const payoutPerBooklet = new Array(booklets.length).fill(0);
+    const targetPerBooklet = targetPayout / booklets.length;
+    const baseCapPerBooklet = targetPerBooklet * 1.25; // 25% tolerance above perfect average
 
     for (const [, slots] of slotsByGameType) {
         let selectedFromGameType = 0;
@@ -547,16 +552,29 @@ function allocateExactPayout(
             }
 
             const slotPayout = slot.currentBet * slot.payout;
+            const currentBookletPayout = payoutPerBooklet[slot.bookletIdx];
+            
+            // Skip this slot if it exceeds the soft cap (unless we really need payout)
+            if (currentBookletPayout + slotPayout > baseCapPerBooklet && totalPayoutAllocated < targetPayout * 0.9) {
+                continue;
+            }
+
             if (totalPayoutAllocated + slotPayout <= targetPayout) {
                 selectedSlots.push({ slot });
                 ticketGameTypeUsage.add(ticketKey);
                 totalPayoutAllocated += slotPayout;
+                payoutPerBooklet[slot.bookletIdx] += slotPayout;
                 selectedFromGameType++;
             }
         }
     }
 
-    // Fill remaining payout
+    // Fill remaining payout, strictly enforcing even distribution
+    for (let i = allSlots.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [allSlots[i], allSlots[j]] = [allSlots[j], allSlots[i]];
+    }
+
     for (const slot of allSlots) {
         const remaining = targetPayout - totalPayoutAllocated;
         if (remaining <= 0) break;
@@ -572,10 +590,20 @@ function allocateExactPayout(
         }
 
         const slotPayout = slot.currentBet * slot.payout;
+        const currentBookletPayout = payoutPerBooklet[slot.bookletIdx];
+            
+        // Relax the cap slightly as we get closer to the total target, to ensure completion
+        const activeCap = totalPayoutAllocated > targetPayout * 0.90 ? baseCapPerBooklet * 2 : baseCapPerBooklet;
+
+        if (currentBookletPayout + slotPayout > activeCap && totalPayoutAllocated < targetPayout * 0.98) {
+            continue;
+        }
+
         if (totalPayoutAllocated + slotPayout <= targetPayout) {
             selectedSlots.push({ slot });
             ticketGameTypeUsage.add(ticketKey);
             totalPayoutAllocated += slotPayout;
+            payoutPerBooklet[slot.bookletIdx] += slotPayout;
         }
     }
 

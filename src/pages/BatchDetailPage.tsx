@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useRef, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
     AlertTriangle,
@@ -22,12 +22,12 @@ import {
     DropdownMenuSubTrigger,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { BookletBatch } from "@/types/lottery";
+import type { BookletBatch, Batch } from "@/types/lottery";
 import { exportAlphaList } from "@/utils/alphaListExport";
 import { exportToCSV } from "@/utils/csvExport";
 import { exportToExcel } from "@/utils/excelExport";
 import { toast } from "sonner";
-import { databaseEnabled, getBatchDetailFromDatabase } from "@/lib/database";
+import { databaseEnabled, getBatchDetailFromDatabase, saveGeneratedBatchToDatabase } from "@/lib/database";
 
 type DrawSummary = {
     time: string;
@@ -45,6 +45,9 @@ export const BatchDetailPage = () => {
     const [batchData, setBatchData] = useState<BookletBatch | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedBookletIdx, setSelectedBookletIdx] = useState(0);
+    const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isSavingRef = useRef(false);
+    const pendingSaveRef = useRef<BookletBatch | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -79,6 +82,7 @@ export const BatchDetailPage = () => {
 
         return () => {
             cancelled = true;
+            if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
         };
     }, [id]);
 
@@ -178,31 +182,91 @@ export const BatchDetailPage = () => {
         };
     }, [batchData, selectedBookletIdx]);
 
+    const performSave = async (dataToSave: BookletBatch) => {
+        if (isSavingRef.current) {
+            pendingSaveRef.current = dataToSave;
+            return;
+        }
+        isSavingRef.current = true;
+        try {
+            const summary: Batch = {
+                id: dataToSave.id || "",
+                name: dataToSave.name || "",
+                province: dataToSave.province || "",
+                date: dataToSave.date || "",
+                booklets: dataToSave.booklets.length,
+                revenue: `PHP ${dataToSave.grandTotalBets.toLocaleString()}`,
+                createdAt: dataToSave.generatedAt || new Date().toISOString(),
+                createdBy: (dataToSave as any).createdBy || "Database",
+                status: "generated",
+                total_revenue: dataToSave.grandTotalBets,
+                total_payout: dataToSave.totalPayout || 0,
+            };
+            
+            await saveGeneratedBatchToDatabase(summary, dataToSave, {
+                companyName: dataToSave.province || dataToSave.name || "",
+                companyCode: (dataToSave.id || "").split('-')[0] || 'STL',
+            });
+            toast.success("Auto-saved changes to database");
+        } catch (err) {
+            console.error("Auto-save failed", err);
+            toast.error("Auto-save to database failed");
+        } finally {
+            isSavingRef.current = false;
+            if (pendingSaveRef.current) {
+                const nextData = pendingSaveRef.current;
+                pendingSaveRef.current = null;
+                performSave(nextData);
+            }
+        }
+    };
+
     const handleDataChange = () => {
         if (!batchData) return;
         const newData = { ...batchData };
         
         let newGrandTotal = 0;
+        let newTotalPayout = 0;
+        
         newData.booklets.forEach(b => {
             let bTotal = 0;
+            let bPayout = 0;
             b.sheets.forEach(s => {
                 s.tickets.forEach(t => {
                     t.numberBets.forEach(nb => {
                         bTotal += nb.bet;
+                        const payout = Number((nb as any).payout || (nb as any).payoutAmount || (nb as any).win || 0);
+                        if (payout > 0) {
+                            bPayout += payout;
+                        }
                     });
                 });
             });
             b.revenue = bTotal;
             b.totalBets = bTotal;
+            b.payout = bPayout;
             newGrandTotal += bTotal;
+            newTotalPayout += bPayout;
         });
         
         newData.grandTotalBets = newGrandTotal;
         newData.totalDailyRevenue = newGrandTotal;
+        if (newTotalPayout > 0 || (newData.totalPayout ?? 0) > 0) {
+            newData.totalPayout = newTotalPayout;
+        }
         
         setBatchData(newData);
         if (newData.id) {
             localStorage.setItem(`batch_data_${newData.id}`, JSON.stringify(newData));
+        }
+
+        if (databaseEnabled()) {
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+            }
+            saveTimeoutRef.current = setTimeout(() => {
+                performSave(newData);
+            }, 1000);
         }
     };
 
@@ -216,9 +280,11 @@ export const BatchDetailPage = () => {
                 await exportAlphaList(batchData);
                 toast.success("Alpha list exported.");
             } else if (kind === "dsr") {
-                navigate(`/batch/${id}/preview/dsr`);
+                const bookletParam = selectedBookletIdx !== -1 ? `?booklet=${selectedBookletIdx}` : "";
+                navigate(`/batch/${id}/preview/dsr${bookletParam}`);
             } else if (kind === "sod") {
-                navigate(`/batch/${id}/preview/sod`);
+                const bookletParam = selectedBookletIdx !== -1 ? `?booklet=${selectedBookletIdx}` : "";
+                navigate(`/batch/${id}/preview/sod${bookletParam}`);
             } else {
                 await exportToExcel(batchData, batchData.booklets);
                 toast.success("Excel exported.");
