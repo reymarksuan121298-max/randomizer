@@ -1,95 +1,9 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import type { BookletBatch, Booklet, NumberBet, Ticket } from '@/types/lottery';
-import { getCompanySettings, getUserProfileFromDatabase, databaseEnabled } from "@/lib/database";
+import { getCompanySettings, getUserProfileFromDatabase, databaseEnabled, getManagerWinnerNames } from "@/lib/database";
 
-const FILIPINO_FIRST_NAMES = [
-    "Juan", "Jose", "Pedro", "Manuel", "Antonio", "Francisco", "Mario", "Danilo", "Renato", "Roberto", 
-    "Eduardo", "Rolando", "Reynaldo", "Rogelio", "Alfredo", "Alberto", "Rodolfo", "Ferdinand", "Joseph", "Michael", 
-    "Christopher", "John", "Christian", "David", "Mark", "James", "Daniel", "Angelo", "Joshua", "Gabriel", 
-    "Ethan", "Alexander", "Miguel", "Rafael", "Jayson", "Alden", "Kenneth", "Gerald", "Ryan", "Nelson",
-    "Maria", "Ana", "Teresa", "Josefina", "Carmen", "Loida", "Lourdes", "Elizabeth", "Corazon", "Imelda", 
-    "Gloria", "Susan", "Evelyn", "Fe", "Erlinda", "Norma", "Yolanda", "Leonora", "Dolores", "Mercy", 
-    "Jessica", "Jennifer", "Joy", "Mary", "Grace", "Sarah", "Patricia", "Bianca", "Angel", "Kyla", 
-    "Andrea", "Sophia", "Chloe", "Nicole", "Samantha", "Jasmine", "Angela", "Christine", "Camille", "Cherry",
-    "Aaron", "Adrian", "Andrew", "Anthony", "Arthur", "Benjamin", "Bryan", "Carlo", "Charles", "Dennis",
-    "Edgar", "Elias", "Emilio", "Enrico", "Ernesto", "Eugene", "Felix", "Gabriel", "Gary", "George",
-    "Hector", "Ian", "Ivan", "Jerome", "Joel", "Julius", "Kevin", "Lawrence", "Leo", "Louie",
-    "Marlon", "Marvin", "Matthew", "Oliver", "Patrick", "Paul", "Peter", "Philip", "Ramon", "Raymund",
-    "Almira", "Amelia", "Anita", "Aurora", "Belen", "Celia", "Clarissa", "Concepcion", "Cristina", "Cynthia",
-    "Diana", "Elena", "Elisa", "Emma", "Estrella", "Fatima", "Flora", "Gina", "Glenda", "Hazel",
-    "Irene", "Isabel", "Jocelyn", "Juliet", "Karen", "Leticia", "Liza", "Lorena", "Luz", "Lydia"
-];
 
-const FILIPINO_LAST_NAMES = [
-    "Santos", "Reyes", "Cruz", "Bautista", "Ocampo", "dela Cruz", "Garcia", "Mendoza", "Ramos", "Aquino", 
-    "Flores", "Gonzales", "Castillo", "Dizon", "Castro", "Hernandez", "Salazar", "Perez", "Valenzuela", "Del Rosario", 
-    "Santiago", "Pascual", "Tolentino", "Soriano", "Marcos", "de Guzman", "Villanueva", "Mercado", "Espiritu", "Macaraeg", 
-    "Dimaculangan", "Catacutan", "Agoncillo", "Laurel", "Recto", "Quezon", "Roxas", "Osmeña", "Duterte", "Robredo", 
-    "Binay", "Poe", "Villar", "Cayetano", "Sotto", "Pacquiao", "Revilla", "Lapid", "Abad", "Agustin",
-    "Alcantara", "Alonzo", "Alvarez", "Amador", "Andal", "Angeles", "Antonio", "Arce", "Arevalo", "Arias",
-    "Asuncion", "Atienza", "Avila", "Ayala", "Bacani", "Balagtas", "Baltazar", "Banal", "Barrios", "Batac",
-    "Bautista", "Bermudez", "Bernardo", "Blanco", "Briones", "Buenaflor", "Buenaventura", "Cabrera", "Calderon", "Camacho",
-    "Cano", "Capulong", "Cardenas", "Carlos", "Carpio", "Casimiro", "Castaneda", "Cervantes", "Chavez", "Clemente"
-];
-
-const DEFAULT_FILIPINO_NAMES: string[] = (() => {
-    const namesSet = new Set<string>();
-    while (namesSet.size < 1000) {
-        const first = FILIPINO_FIRST_NAMES[Math.floor(Math.random() * FILIPINO_FIRST_NAMES.length)];
-        const last = FILIPINO_LAST_NAMES[Math.floor(Math.random() * FILIPINO_LAST_NAMES.length)];
-        namesSet.add(`${first} ${last}`);
-    }
-    return Array.from(namesSet);
-})();
-
-const MARANAO_FIRST_NAMES = [
-    "Muhammad", "Ahmad", "Ali", "Hassan", "Hussein", "Ibrahim", "Ismail", "Yusuf", "Abdul", "Rahman",
-    "Fatima", "Aisha", "Khadija", "Zainab", "Maryam", "Amina", "Safiya", "Halima", "Salma", "Yasmin",
-    "Nor", "Sittie", "Johary", "Alnor", "Aslimah", "Asnia", "Johanie", "Jalilah", "Jamal", "Jamil",
-    "Samer", "Nasrudin", "Mohamad", "Amin", "Jabar", "Nabil", "Farid", "Hakim", "Karim", "Latif",
-    "Said", "Majid", "Jalal", "Najib", "Rashid", "Tahir", "Zaki", "Malik", "Faisal", "Imran",
-    "Anwar", "Harun", "Yahya", "Idris", "Isa", "Musa", "Sulaiman", "Dawud", "Ayyub", "Yunus",
-    "Zakariya", "Ilyas", "Alyas", "Mansur", "Habib", "Nizam", "Qasim", "Riad", "Salim", "Tariq",
-    "Umar", "Waleed", "Yasin", "Zain", "Asad", "Nadia", "Samira", "Soraya", "Farah", "Laila",
-    "Huda", "Rania", "Sana", "Zara", "Amira", "Muna", "Nur", "Reem", "Salwa", "Wafa",
-    "Dalila", "Faten", "Ghada", "Hana", "Ibtisam", "Jihan", "Karima", "Lina", "Maha", "Nada",
-    "Omnia", "Qamar", "Rasha", "Siham", "Tahira", "Widad", "Yusra", "Zahra", "Aaliyah", "Basma"
-];
-
-const MARANAO_LAST_NAMES = [
-    "Macarambon", "Dimaporo", "Alonto", "Lucman", "Pangandaman", "Sinsuat", "Matalam", "Pendatun", "Mastura", "Sangcopan",
-    "Pangarungan", "Balindong", "Adiong", "Salic", "Tomawis", "Datu", "Ali", "Usman", "Ibrahim", "Hassan",
-    "Abdul", "Rahman", "Abas", "Mohammad", "Abdullah", "Macadato", "Macalabo", "Batugan", "Pindolonan", "Guro",
-    "Ampatuan", "Mangudadatu", "Sali", "Bato", "Muti", "Pompong", "Ranao", "Maruhom", "Gani", "Omar",
-    "Abubakar", "Ismael", "Yusoph", "Karim", "Hashim", "Jamalul", "Kiram", "Taha", "Tahir", "Majid",
-    "Hamid", "Rasul", "Sani", "Alih", "Ambor", "Bara", "Barua", "Basman", "Benito", "Dianalan",
-    "Disomimba", "Ganda", "Hadji", "Jamil", "Lantud", "Macapaar", "Mamarinta", "Marohombsar", "Matanog", "Mindalano",
-    "Mutia", "Naga", "Nuro", "Pacasum", "Panandigan", "Pandita", "Pili", "Radiamoda", "Rominimbang", "Sabal",
-    "Sambarani", "Sarip", "Solaiman", "Sultan", "Taha", "Tanggol", "Tawano", "Unte", "Usop", "Yahya"
-];
-
-const DEFAULT_MARANAO_NAMES: string[] = (() => {
-    const namesSet = new Set<string>();
-    while (namesSet.size < 1000) {
-        const first = MARANAO_FIRST_NAMES[Math.floor(Math.random() * MARANAO_FIRST_NAMES.length)];
-        const last = MARANAO_LAST_NAMES[Math.floor(Math.random() * MARANAO_LAST_NAMES.length)];
-        namesSet.add(`${first} ${last}`);
-    }
-    return Array.from(namesSet);
-})();
-
-const DEFAULT_MAGUINDANAO_NAMES: string[] = (() => {
-    const namesSet = new Set<string>();
-    const COMBINED_FIRST_NAMES = [...MARANAO_FIRST_NAMES, ...FILIPINO_FIRST_NAMES];
-    const COMBINED_LAST_NAMES = [...MARANAO_LAST_NAMES, ...FILIPINO_LAST_NAMES];
-    while (namesSet.size < 1000) {
-        const first = COMBINED_FIRST_NAMES[Math.floor(Math.random() * COMBINED_FIRST_NAMES.length)];
-        const last = COMBINED_LAST_NAMES[Math.floor(Math.random() * COMBINED_LAST_NAMES.length)];
-        namesSet.add(`${first} ${last}`);
-    }
-    return Array.from(namesSet);
-})();
 
 export async function getWinnerNamesList(): Promise<string[]> {
     if (!databaseEnabled()) return [];
@@ -177,9 +91,20 @@ type ReportData = {
     winningNumbers: Array<{ game: string; time: string; type: string; number: string }>;
 };
 
+// removed detectRegionType
+
 export async function exportToExcel(batch: BookletBatch, booklets: Booklet[] = batch.booklets) {
     const winnerNames = await getWinnerNamesList();
-    const workbook = buildFullReportWorkbook({ ...batch, booklets }, winnerNames);
+    
+    const userId = localStorage.getItem('user_id');
+    const isSpecialRegion = ['1', '3', '4', '7'].includes(userId || '');
+    
+    let defaultNamesToUse = await getManagerWinnerNames();
+    if (!defaultNamesToUse || defaultNamesToUse.length === 0) {
+        defaultNamesToUse = ["Winner"];
+    }
+    
+    const workbook = buildFullReportWorkbook({ ...batch, booklets }, winnerNames, defaultNamesToUse, isSpecialRegion);
     const buffer = await workbook.xlsx.writeBuffer();
     const data = new Blob([buffer], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8',
@@ -187,13 +112,13 @@ export async function exportToExcel(batch: BookletBatch, booklets: Booklet[] = b
     saveAs(data, `${safeFileName(batch.name || batch.id || 'STL_Batch')}_Report.xlsx`);
 }
 
-export function buildFullReportWorkbook(batch: BookletBatch, winnerNames: string[] = []) {
+export function buildFullReportWorkbook(batch: BookletBatch, winnerNames: string[] = [], defaultNamesToUse: string[] = ["Winner"], isSpecialRegion: boolean = false) {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'STL Randomizer System';
     workbook.created = new Date();
     workbook.modified = new Date();
 
-    const report = buildReportData(batch, winnerNames);
+    const report = buildReportData(batch, winnerNames, defaultNamesToUse, isSpecialRegion);
     addSummarySheet(workbook, batch, report);
     addAllTicketsSheet(workbook, report);
 
@@ -205,9 +130,9 @@ export function buildFullReportWorkbook(batch: BookletBatch, winnerNames: string
     return workbook;
 }
 
-export function buildAlphaListWorkbook(batch: BookletBatch, winnerNames: string[] = []) {
+export function buildAlphaListWorkbook(batch: BookletBatch, winnerNames: string[] = [], defaultNamesToUse: string[] = ["Winner"], isSpecialRegion: boolean = false) {
     const workbook = new ExcelJS.Workbook();
-    const report = buildReportData(batch, winnerNames);
+    const report = buildReportData(batch, winnerNames, defaultNamesToUse, isSpecialRegion);
 
     batch.booklets.forEach((booklet) => addAlphaSheet(workbook, batch, booklet, report));
 
@@ -215,7 +140,7 @@ export function buildAlphaListWorkbook(batch: BookletBatch, winnerNames: string[
 }
 
 export function buildCsvRows(batch: BookletBatch) {
-    const report = buildReportData(batch);
+    const report = buildReportData(batch, [], ["Winner"], false);
 
     return report.rows.flatMap((row) =>
         row.bets
@@ -447,7 +372,7 @@ function addBookletSheet(workbook: ExcelJS.Workbook, batch: BookletBatch, bookle
     sheet.getRow(9).font = { bold: true };
     sheet.getRow(9).fill = solid(COLORS.lightBlue);
 
-    header(sheet.getRow(12), ['GAME TYPE', 'TIME', 'SERIAL NUMBER', 'LETTER', 'COMB.', 'BET.', 'COMB.', 'BET.', 'COMB.', 'BET.'], COLORS.blue);
+    header(sheet.getRow(12), ['GAME TYPE', 'TIME', 'SERIAL NUMBER', 'LETTER', 'COMB.', 'BET.', 'COMB.', 'BET.', 'COMB.', 'BET.', 'WINNER NAME'], COLORS.blue);
 
     const bookletRows = report.rows.filter((row) => row.bookletNumber === booklet.bookletNumber);
     bookletRows.sort((a, b) => {
@@ -563,21 +488,15 @@ function stripTime(gameName: string) {
     return gameName.replace(/ \d{1,2}:\d{2} [AP]M/i, '').trim();
 }
 
-function buildReportData(batch: BookletBatch, winnerNames: string[] = []): ReportData {
+function buildReportData(batch: BookletBatch, winnerNames: string[] = [], defaultNamesToUse: string[] = ["Winner"], isSpecialRegion: boolean = false): ReportData {
     const rows: BetRow[] = [];
     const winners: WinnerRow[] = [];
     const statsMap = new Map<string, GameStat>();
     const winningNumberMap = new Map<string, { game: string; time: string; type: string; number: string }>();
     const configuredWinners = ((batch as any).winningNumbers || {}) as Record<string, string>;
-
-    const isLanaoSur = (batch.province?.toLowerCase() || "").includes("lanaosur") || (batch.name?.toLowerCase() || "").includes("lanaosur");
-    const isMaguindanao = (batch.province?.toLowerCase() || "").includes("maguindanao") || (batch.name?.toLowerCase() || "").includes("maguindanao");
+    const shouldUseCustomNames = winnerNames && winnerNames.length > 0 && !isSpecialRegion;
     
-    let defaultNamesToUse = DEFAULT_FILIPINO_NAMES;
-    if (isLanaoSur) defaultNamesToUse = DEFAULT_MARANAO_NAMES;
-    if (isMaguindanao) defaultNamesToUse = DEFAULT_MAGUINDANAO_NAMES;
-
-    const shuffledNames = winnerNames && winnerNames.length > 0 
+    const shuffledNames = shouldUseCustomNames
         ? [...winnerNames].sort(() => Math.random() - 0.5) 
         : [...defaultNamesToUse].sort(() => Math.random() - 0.5);
     let nameIndex = 0;

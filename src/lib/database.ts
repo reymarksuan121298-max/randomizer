@@ -615,6 +615,35 @@ const insertInChunks = async <T = any>(table: string, rows: any[], select?: stri
     return inserted;
 };
 
+export async function getManagerWinnerNames(): Promise<string[]> {
+    if (!databaseEnabled()) return [];
+    try {
+        const userId = localStorage.getItem('user_id');
+        if (!userId) return [];
+        
+        let table = '';
+        switch (userId) {
+            case '1': table = 'lanaonorte_winners'; break;
+            case '3': table = 'cotabato_winners'; break;
+            case '4': table = 'maguindanao_winners'; break;
+            case '7': table = 'lanaosur_winners'; break;
+            default: return [];
+        }
+        
+        const { data, error } = await supabase.from(table).select('name').eq('user_id', userId);
+            
+        if (error) {
+            console.error("Error fetching manager winner names:", error);
+            return [];
+        }
+        
+        return data.map(r => r.name);
+    } catch (e) {
+        console.error("Failed to fetch manager winner names:", e);
+        return [];
+    }
+}
+
 export const getCompanySettings = async (companyId: number) => {
     if (!databaseEnabled()) return null;
     
