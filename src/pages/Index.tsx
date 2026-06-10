@@ -363,7 +363,7 @@ const Index = () => {
                                     const isDisabled = disableLocal && isLocal;
                                     const placeholder = gt.digits === 3 ? "000-999" : "00-99";
                                     const lowerCompany = company.toLowerCase();
-                                    const isAutoFillCompany = lowerCompany.includes("5a royal") || lowerCompany.includes("imperial");
+                                    const isAutoFillCompany = lowerCompany.includes("maguindanao") || lowerCompany.includes("imperial");
                                     return (
                                         <div key={gt.id} className={`space-y-1 ${isDisabled ? 'opacity-40 grayscale' : ''}`}>
                                             <div className="flex items-center gap-1">
