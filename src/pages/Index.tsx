@@ -362,6 +362,8 @@ const Index = () => {
                                     const isLocal = !gt.isNational;
                                     const isDisabled = disableLocal && isLocal;
                                     const placeholder = gt.digits === 3 ? "000-999" : "00-99";
+                                    const lowerCompany = company.toLowerCase();
+                                    const isAutoFillCompany = lowerCompany.includes("5a royal") || lowerCompany.includes("imperial");
                                     return (
                                         <div key={gt.id} className={`space-y-1 ${isDisabled ? 'opacity-40 grayscale' : ''}`}>
                                             <div className="flex items-center gap-1">
@@ -377,6 +379,16 @@ const Index = () => {
                                                 placeholder={placeholder}
                                                 className="h-7 text-center text-[9px]"
                                                 disabled={isDisabled}
+                                                onChange={(e) => {
+                                                    if (isAutoFillCompany && gt.digits === 3) {
+                                                        const val = e.target.value;
+                                                        const lastTwo = val.length >= 2 ? val.slice(-2) : val;
+                                                        const related2D = activeGameTypes.find(g => g.time === gt.time && g.digits === 2 && g.isNational === gt.isNational);
+                                                        if (related2D && winningInputs.current[related2D.id]) {
+                                                            winningInputs.current[related2D.id]!.value = lastTwo;
+                                                        }
+                                                    }
+                                                }}
                                             />
                                         </div>
                                     );
