@@ -296,7 +296,7 @@ export const BatchDetailPage = () => {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-[#f7f8fa] px-6 py-5">
+            <div className="min-h-screen bg-[#f7f8fa] px-6 py-5 dark:bg-slate-950 transition-colors duration-300">
                 <div className="mx-auto max-w-[1180px] space-y-6">
                     {/* Header skeleton */}
                     <div className="flex items-start justify-between gap-4">
@@ -376,13 +376,13 @@ export const BatchDetailPage = () => {
     const createdDate = batchData.generatedAt || batchData.date;
 
     return (
-        <main className="min-h-screen bg-[#f7f8fa] px-6 py-5 text-slate-950">
+        <main className="min-h-screen bg-[#f7f8fa] px-6 py-5 text-slate-950 dark:bg-slate-950 dark:text-slate-50 transition-colors duration-300">
             <div className="mx-auto max-w-[1180px] space-y-6">
                 <header className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-4">
                         <Button
                             variant="outline"
-                            className="h-8 rounded-md border-slate-200 bg-white px-4 text-[10px] font-black uppercase"
+                            className="h-8 rounded-md border-slate-200 bg-white px-4 text-[10px] font-black uppercase dark:border-slate-800 dark:bg-slate-900"
                             onClick={() => navigate("/batches")}
                         >
                             <ArrowLeft className="h-3.5 w-3.5" />
@@ -392,7 +392,7 @@ export const BatchDetailPage = () => {
                             <h1 className="font-mono text-xl font-black uppercase leading-none text-[#f7b500]">
                                 {batchData.id || id}
                             </h1>
-                            <p className="mt-2 text-xs uppercase text-slate-600">
+                            <p className="mt-2 text-xs uppercase text-slate-600 dark:text-slate-400">
                                 {batchData.province || batchData.name} - Created {new Date(createdDate).toLocaleDateString("en-US")}
                             </p>
                         </div>
@@ -407,7 +407,7 @@ export const BatchDetailPage = () => {
                     </div>
                 </header>
 
-                <section className="rounded-lg border-2 border-[#f7b500] bg-white p-5">
+                <section className="rounded-lg border-2 border-[#f7b500] bg-white p-5 dark:bg-slate-900">
                     <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-5">
                         <Metric label="Total Booklets" value={String(batchData.booklets.length)} accent="text-[#f7b500]" accentBorder />
                         <Metric label="Daily Revenue" value={formatMoney(analysis?.totalRevenue ?? 0)} />
@@ -419,7 +419,7 @@ export const BatchDetailPage = () => {
                         <Metric label="Game Types" value={`${analysis?.gameTypeCount ?? 0} types`} />
                     </div>
 
-                    <div className="mt-6 grid grid-cols-3 gap-6 border-t border-slate-200 pt-4 text-xs">
+                    <div className="mt-6 grid grid-cols-3 gap-6 border-t border-slate-200 pt-4 text-xs dark:border-slate-800">
                         <Info label="Created By" value={(batchData as any).createdBy || "Not recorded"} />
                         <Info label="Company" value={batchData.name || batchData.province || "Not recorded"} />
                         <Info label="Approved By" value={(batchData as any).approvedBy || "Not recorded"} />
@@ -432,15 +432,15 @@ export const BatchDetailPage = () => {
                         </h2>
                         <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
                             {(analysis?.winningNumbers ?? []).map((winner) => (
-                                <div key={winner.label} className="rounded-lg bg-slate-50 px-4 py-3 text-center">
-                                    <div className="truncate text-[10px] uppercase text-slate-500">{winner.label}</div>
+                                <div key={winner.label} className="rounded-lg bg-slate-50 px-4 py-3 text-center dark:bg-slate-800/50">
+                                    <div className="truncate text-[10px] uppercase text-slate-500 dark:text-slate-400">{winner.label}</div>
                                     <div className="mt-1 font-mono text-xl font-black text-[#f7b500]">{winner.number}</div>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    <div className="mt-4 rounded-md border border-[#f7b500] bg-[#fff8e6] px-4 py-3 text-xs text-amber-700">
+                    <div className="mt-4 rounded-md border border-[#f7b500] bg-[#fff8e6] px-4 py-3 text-xs text-amber-700 dark:bg-[#2a2100] dark:text-amber-500">
                         <span className="inline-flex items-center gap-2 font-black">
                             <AlertTriangle className="h-4 w-4" />
                             Important:
@@ -449,7 +449,7 @@ export const BatchDetailPage = () => {
                     </div>
                 </section>
 
-                <section className="rounded-lg border-2 border-[#f7b500] bg-white p-5">
+                <section className="rounded-lg border-2 border-[#f7b500] bg-white p-5 dark:bg-slate-900">
                     <h2 className="mb-4 text-sm font-black uppercase text-[#f7b500]">
                         PER-DRAW SUMMARY ({selectedBookletIdx === -1 ? "ALL BOOKLETS" : `BOOKLET ${selectedBookletIdx + 1}`})
                     </h2>
@@ -465,7 +465,7 @@ export const BatchDetailPage = () => {
                     <button
                         className={`rounded-md border-2 px-4 py-2 font-mono text-[10px] font-black uppercase transition-colors ${selectedBookletIdx === -1
                             ? "border-black bg-[#f7b500] text-slate-950"
-                            : "border-transparent bg-white text-slate-500 hover:bg-slate-50"
+                            : "border-transparent bg-white text-slate-500 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
                             }`}
                         onClick={() => setSelectedBookletIdx(-1)}
                     >
@@ -476,7 +476,7 @@ export const BatchDetailPage = () => {
                             key={booklet.id}
                             className={`rounded-md border-2 px-4 py-2 font-mono text-[10px] font-black uppercase transition-colors ${selectedBookletIdx === idx
                                 ? "border-black bg-[#f7b500] text-slate-950"
-                                : "border-transparent bg-white text-slate-500 hover:bg-slate-50"
+                                : "border-transparent bg-white text-slate-500 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
                                 }`}
                             onClick={() => setSelectedBookletIdx(idx)}
                         >
@@ -485,7 +485,7 @@ export const BatchDetailPage = () => {
                     ))}
                 </div>
 
-                <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                     <div className="w-32"></div>
                     <div className="flex-1 text-center">
                         <h3 className="text-xs font-black uppercase text-[#5f849c]">
@@ -494,13 +494,13 @@ export const BatchDetailPage = () => {
                         <div className="my-2 font-mono text-3xl font-black text-[#f7b500]">
                             {formatMoney(analysis?.totalRevenue ?? 0)}
                         </div>
-                        <div className="flex items-center justify-center gap-4 text-xs font-medium text-slate-500">
+                        <div className="flex items-center justify-center gap-4 text-xs font-medium text-slate-500 dark:text-slate-400">
                             <span>Total Bets: {formatMoney(analysis?.totalRevenue ?? 0)}</span>
                             <span className="font-bold text-[#f7b500]">Total Prizes: {formatMoney(analysis?.totalPayout ?? 0)}</span>
                         </div>
                     </div>
                     <div className="w-32 text-right">
-                        <Button variant="outline" className="h-9 text-xs font-medium text-slate-700" onClick={() => runReport("csv")}>
+                        <Button variant="outline" className="h-9 text-xs font-medium text-slate-700 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800" onClick={() => runReport("csv")}>
                             <Download className="mr-2 h-4 w-4" />
                             Export CSV
                         </Button>
@@ -518,24 +518,24 @@ const ReportsMenu = ({ onRun }: { onRun: (kind: string) => void }) => (
         <DropdownMenuTrigger asChild>
             <Button
                 variant="outline"
-                className="h-9 rounded-md border-[#f7b500] bg-white px-4 text-[10px] font-black uppercase text-slate-950"
+                className="h-9 rounded-md border-[#f7b500] bg-white px-4 text-[10px] font-black uppercase text-slate-950 dark:bg-slate-900 dark:text-white dark:hover:bg-slate-800"
             >
                 <FileText className="h-4 w-4" />
                 Reports
                 <ChevronDown className="h-4 w-4" />
             </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 rounded-md border-slate-200 bg-white p-1 text-slate-950 shadow-lg">
+        <DropdownMenuContent align="end" className="w-56 rounded-md border-slate-200 bg-white p-1 text-slate-950 shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
             <ReportItem icon={<Download className="h-4 w-4" />} label="Export CSV (Detailed)" onClick={() => onRun("csv")} />
             <ReportItem icon={<FileText className="h-4 w-4" />} label="Export Table (Simple)" onClick={() => onRun("table")} />
             <ReportItem icon={<FileSpreadsheet className="h-4 w-4" />} label="Export Excel (Formatted)" onClick={() => onRun("excel")} />
             <ReportItem icon={<Trophy className="h-4 w-4" />} label="Daily/Batch Alpha List" onClick={() => onRun("alpha")} />
             <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="gap-2 rounded-sm bg-white py-2 text-xs font-medium text-slate-700 focus:bg-slate-50">
+                <DropdownMenuSubTrigger className="gap-2 rounded-sm bg-white py-2 text-xs font-medium text-slate-700 focus:bg-slate-50 dark:bg-slate-900 dark:text-slate-300 dark:focus:bg-slate-800">
                     <Trophy className="h-4 w-4" />
                     Booklet Alpha Lists
                 </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="rounded-md border-slate-200 bg-white p-1 text-slate-950 shadow-lg">
+                <DropdownMenuSubContent className="rounded-md border-slate-200 bg-white p-1 text-slate-950 shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
                     <DropdownMenuItem className="rounded-sm py-2 text-xs" onClick={() => onRun("alpha")}>
                         All Booklets
                     </DropdownMenuItem>
@@ -548,16 +548,16 @@ const ReportsMenu = ({ onRun }: { onRun: (kind: string) => void }) => (
 );
 
 const ReportItem = ({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) => (
-    <DropdownMenuItem className="gap-2 rounded-sm bg-white py-2 text-xs font-medium text-slate-700 focus:bg-slate-50" onClick={onClick}>
+    <DropdownMenuItem className="gap-2 rounded-sm bg-white py-2 text-xs font-medium text-slate-700 focus:bg-slate-50 dark:bg-slate-900 dark:text-slate-300 dark:focus:bg-slate-800" onClick={onClick}>
         {icon}
         {label}
     </DropdownMenuItem>
 );
 
 const Metric = ({ label, value, accent, danger, purple, accentBorder }: { label: string; value: string; accent?: string; danger?: boolean; purple?: boolean; accentBorder?: boolean }) => (
-    <div className={`rounded-lg bg-slate-50 px-4 py-4 ${danger ? "border-l-2 border-red-500" : ""} ${purple ? "border-l-2 border-purple-500" : ""} ${accentBorder ? "border-l-2 border-[#f7b500]" : ""}`}>
-        <div className="mb-2 text-[10px] text-slate-500">{label}</div>
-        <div className={`font-mono text-base font-black ${danger ? "text-red-500" : purple ? "text-purple-600" : accent || "text-slate-950"}`}>
+    <div className={`rounded-lg bg-slate-50 px-4 py-4 dark:bg-slate-800/50 ${danger ? "border-l-2 border-red-500" : ""} ${purple ? "border-l-2 border-purple-500" : ""} ${accentBorder ? "border-l-2 border-[#f7b500]" : ""}`}>
+        <div className="mb-2 text-[10px] text-slate-500 dark:text-slate-400">{label}</div>
+        <div className={`font-mono text-base font-black ${danger ? "text-red-500" : purple ? "text-purple-600 dark:text-purple-400" : accent || "text-slate-950 dark:text-white"}`}>
             {value}
         </div>
     </div>
@@ -565,8 +565,8 @@ const Metric = ({ label, value, accent, danger, purple, accentBorder }: { label:
 
 const Info = ({ label, value }: { label: string; value: string }) => (
     <div>
-        <div className="text-[10px] text-slate-500">{label}</div>
-        <div className="text-xs font-black text-slate-950">{value}</div>
+        <div className="text-[10px] text-slate-500 dark:text-slate-400">{label}</div>
+        <div className="text-xs font-black text-slate-950 dark:text-white">{value}</div>
     </div>
 );
 
@@ -577,7 +577,7 @@ const DrawCard = ({ draw }: { draw: DrawSummary }) => {
     const netSign = net > 0 ? "+" : "";
 
     return (
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/50">
             <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-xs font-black uppercase text-[#f7b500]">{draw.time}</h3>
                 {draw.winners > 0 && (
@@ -589,7 +589,7 @@ const DrawCard = ({ draw }: { draw: DrawSummary }) => {
             <DrawLine label="Sheets:" value={String(draw.sheets.size)} />
             <DrawLine label="Revenue:" value={formatMoney(draw.revenue)} good />
             <DrawLine label="Payout:" value={formatMoney(draw.payout)} bad={draw.payout > 0} />
-            <div className="mt-3 border-t border-slate-200 pt-2">
+            <div className="mt-3 border-t border-slate-200 pt-2 dark:border-slate-700">
                 <DrawLine label="Net Profit:" value={`${netSign}${formatMoney(net)} (${margin.toFixed(1)}%)`} blue={!isNegative} bad={isNegative} />
             </div>
         </div>
@@ -598,8 +598,8 @@ const DrawCard = ({ draw }: { draw: DrawSummary }) => {
 
 const DrawLine = ({ label, value, good, bad, blue }: { label: string; value: string; good?: boolean; bad?: boolean; blue?: boolean }) => (
     <div className="flex items-center justify-between py-1 text-xs">
-        <span className="text-slate-500">{label}</span>
-        <span className={`font-mono font-black ${good ? "text-green-600" : bad ? "text-red-500" : blue ? "text-blue-600" : "text-slate-950"}`}>
+        <span className="text-slate-500 dark:text-slate-400">{label}</span>
+        <span className={`font-mono font-black ${good ? "text-green-600 dark:text-green-400" : bad ? "text-red-500 dark:text-red-400" : blue ? "text-blue-600 dark:text-blue-400" : "text-slate-950 dark:text-white"}`}>
             {value}
         </span>
     </div>

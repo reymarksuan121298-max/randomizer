@@ -43,10 +43,11 @@ export const SODPreviewPage = () => {
     if (!batchData) return <div className="p-8 text-center"><Loader2 className="animate-spin inline mr-2" /> Loading...</div>;
 
     return (
-        <div className="container mx-auto py-8 px-4">
+        <div className="min-h-screen bg-[#f7f8fa] dark:bg-slate-950 text-slate-900 dark:text-slate-50 transition-colors duration-300">
+            <div className="container mx-auto py-8 px-4">
             <div className="flex justify-between items-center mb-8">
                 <div className="flex items-center gap-4">
-                    <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
+                    <Button variant="outline" size="icon" onClick={() => navigate(-1)} className="dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800">
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <h1 className="text-3xl font-bold">SOD Preview: {batchData.name} — Booklet {selectedBookletIdx + 1}</h1>
@@ -56,7 +57,7 @@ export const SODPreviewPage = () => {
                 </Button>
             </div>
 
-            <Card className="min-h-[600px] overflow-auto">
+            <Card className="min-h-[600px] overflow-auto dark:border-slate-800 dark:bg-slate-900">
                 <CardContent className="p-8">
                     <div className="max-w-4xl mx-auto border p-12 shadow-inner bg-white text-black font-mono text-sm">
                         <div className="text-center font-bold text-xl mb-4 underline">STATEMENT OF DRAW</div>
@@ -81,6 +82,7 @@ export const SODPreviewPage = () => {
                     </div>
                 </CardContent>
             </Card>
+            </div>
         </div>
     );
 };

@@ -157,46 +157,46 @@ export const PrizeUtilizationPage = () => {
     const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
     return (
-        <div className="min-h-screen bg-slate-50 py-10 px-4 font-sans text-slate-800">
+        <div className="min-h-screen bg-slate-50 py-10 px-4 font-sans text-slate-800 dark:bg-slate-950 dark:text-slate-50 transition-colors duration-300">
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
                 <div className="flex items-start gap-4 mb-8">
-                    <Button variant="outline" size="sm" onClick={() => navigate('/batches')} className="h-8 gap-1 font-bold text-xs shrink-0 mt-1 bg-white">
+                    <Button variant="outline" size="sm" onClick={() => navigate('/batches')} className="h-8 gap-1 font-bold text-xs shrink-0 mt-1 bg-white dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800">
                         <ArrowLeft className="h-3 w-3" /> BACK
                     </Button>
                     <div>
                         <h1 className="text-3xl font-black text-yellow-500 uppercase tracking-tight mb-2">Prize Fund Utilization Report</h1>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Monthly prize fund analysis and utilization</p>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">Monthly prize fund analysis and utilization</p>
                     </div>
                 </div>
 
                 {/* Selection Box */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-6">
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-6 dark:border-slate-800 dark:bg-slate-900">
                     <div className="flex items-center gap-2 mb-2">
-                        <FileText className="h-5 w-5 text-slate-700" />
-                        <h2 className="text-lg font-black uppercase tracking-tight text-slate-800">Select Report Period</h2>
+                        <FileText className="h-5 w-5 text-slate-700 dark:text-slate-300" />
+                        <h2 className="text-lg font-black uppercase tracking-tight text-slate-800 dark:text-slate-100">Select Report Period</h2>
                     </div>
-                    <p className="text-xs text-slate-500 font-medium mb-6">Choose the year and month to generate the prize utilization report</p>
+                    <p className="text-xs text-slate-500 font-medium mb-6 dark:text-slate-400">Choose the year and month to generate the prize utilization report</p>
 
                     <div className="flex flex-col md:flex-row gap-4 items-end">
                         <div className="flex-1 w-full space-y-2">
-                            <Label className="text-[10px] font-bold uppercase text-slate-700">Year</Label>
+                            <Label className="text-[10px] font-bold uppercase text-slate-700 dark:text-slate-300">Year</Label>
                             <Select value={selectedYear} onValueChange={setSelectedYear}>
-                                <SelectTrigger className="bg-white border-slate-200 h-10 font-medium text-sm">
+                                <SelectTrigger className="bg-white border-slate-200 h-10 font-medium text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">
                                     <SelectValue placeholder="Select Year" />
                                 </SelectTrigger>
-                                <SelectContent className="bg-white">
+                                <SelectContent className="bg-white dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">
                                     {YEARS.map(y => <SelectItem key={y} value={y} className="cursor-pointer font-medium">{y}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="flex-1 w-full space-y-2">
-                            <Label className="text-[10px] font-bold uppercase text-slate-700">Month</Label>
+                            <Label className="text-[10px] font-bold uppercase text-slate-700 dark:text-slate-300">Month</Label>
                             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                                <SelectTrigger className="bg-white border-slate-200 h-10 font-medium text-sm">
+                                <SelectTrigger className="bg-white border-slate-200 h-10 font-medium text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">
                                     <SelectValue placeholder="Select Month" />
                                 </SelectTrigger>
-                                <SelectContent className="bg-white max-h-[300px]">
+                                <SelectContent className="bg-white max-h-[300px] dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">
                                     {MONTHS.map(m => <SelectItem key={m} value={m} className="cursor-pointer font-medium">{m}</SelectItem>)}
                                 </SelectContent>
                             </Select>
@@ -221,46 +221,46 @@ export const PrizeUtilizationPage = () => {
                 </div>
 
                 {!previewData ? (
-                    <div className="bg-slate-100/50 rounded-xl border border-dashed border-slate-300 p-20 flex flex-col items-center justify-center text-center">
-                        <FileSpreadsheet className="h-16 w-16 text-slate-300 mb-4" strokeWidth={1.5} />
-                        <p className="text-slate-500 font-medium text-sm">Select a period and click "Generate Preview" to view the report</p>
+                    <div className="bg-slate-100/50 rounded-xl border border-dashed border-slate-300 p-20 flex flex-col items-center justify-center text-center dark:border-slate-800 dark:bg-slate-900/50">
+                        <FileSpreadsheet className="h-16 w-16 text-slate-300 mb-4 dark:text-slate-600" strokeWidth={1.5} />
+                        <p className="text-slate-500 font-medium text-sm dark:text-slate-400">Select a period and click "Generate Preview" to view the report</p>
                     </div>
                 ) : (
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-12">
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-12 dark:border-slate-800 dark:bg-slate-900">
                         {/* Preview Header */}
-                        <div className="p-6 border-b border-slate-100">
+                        <div className="p-6 border-b border-slate-100 dark:border-slate-800">
                             <div className="flex items-center gap-2 mb-1">
-                                <FileText className="h-5 w-5 text-slate-700" />
-                                <h2 className="text-lg font-black uppercase tracking-tight text-slate-800">Preview - {selectedMonth} {selectedYear}</h2>
+                                <FileText className="h-5 w-5 text-slate-700 dark:text-slate-300" />
+                                <h2 className="text-lg font-black uppercase tracking-tight text-slate-800 dark:text-slate-100">Preview - {selectedMonth} {selectedYear}</h2>
                             </div>
-                            <p className="text-xs text-slate-500 font-medium mb-6">{companyName}</p>
+                            <p className="text-xs text-slate-500 font-medium mb-6 dark:text-slate-400">{companyName}</p>
 
                             {/* Summary Cards */}
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                                <div className="bg-[#f0f7ff] rounded-xl p-5 border border-blue-100 shadow-sm">
-                                    <p className="text-[11px] font-bold text-slate-500 mb-1 uppercase tracking-wide">Total Sales</p>
-                                    <p className="text-3xl font-black text-slate-800 tracking-tight">{formatCurrency(summary!.totalSales)}</p>
+                                <div className="bg-[#f0f7ff] rounded-xl p-5 border border-blue-100 shadow-sm dark:border-blue-900/30 dark:bg-blue-900/10">
+                                    <p className="text-[11px] font-bold text-slate-500 mb-1 uppercase tracking-wide dark:text-blue-400">Total Sales</p>
+                                    <p className="text-3xl font-black text-slate-800 tracking-tight dark:text-blue-100">{formatCurrency(summary!.totalSales)}</p>
                                 </div>
-                                <div className="bg-[#f0fdf4] rounded-xl p-5 border border-emerald-100 shadow-sm">
-                                    <p className="text-[11px] font-bold text-slate-500 mb-1 uppercase tracking-wide">Prize Fund (33.9%)</p>
-                                    <p className="text-3xl font-black text-slate-800 tracking-tight">{formatCurrency(summary!.prizeFund)}</p>
+                                <div className="bg-[#f0fdf4] rounded-xl p-5 border border-emerald-100 shadow-sm dark:border-emerald-900/30 dark:bg-emerald-900/10">
+                                    <p className="text-[11px] font-bold text-slate-500 mb-1 uppercase tracking-wide dark:text-emerald-400">Prize Fund (33.9%)</p>
+                                    <p className="text-3xl font-black text-slate-800 tracking-tight dark:text-emerald-100">{formatCurrency(summary!.prizeFund)}</p>
                                 </div>
-                                <div className="bg-[#fff7ed] rounded-xl p-5 border border-orange-100 shadow-sm">
-                                    <p className="text-[11px] font-bold text-slate-500 mb-1 uppercase tracking-wide">Total Payouts</p>
-                                    <p className="text-3xl font-black text-slate-800 tracking-tight">{formatCurrency(summary!.totalPayouts)}</p>
+                                <div className="bg-[#fff7ed] rounded-xl p-5 border border-orange-100 shadow-sm dark:border-orange-900/30 dark:bg-orange-900/10">
+                                    <p className="text-[11px] font-bold text-slate-500 mb-1 uppercase tracking-wide dark:text-orange-400">Total Payouts</p>
+                                    <p className="text-3xl font-black text-slate-800 tracking-tight dark:text-orange-100">{formatCurrency(summary!.totalPayouts)}</p>
                                 </div>
-                                <div className="bg-[#fdf4ff] rounded-xl p-5 border border-fuchsia-100 shadow-sm">
-                                    <p className="text-[11px] font-bold text-slate-500 mb-1 uppercase tracking-wide">Utilization</p>
-                                    <p className="text-3xl font-black text-slate-800 tracking-tight">{summary!.utilization.toFixed(2)}%</p>
+                                <div className="bg-[#fdf4ff] rounded-xl p-5 border border-fuchsia-100 shadow-sm dark:border-fuchsia-900/30 dark:bg-fuchsia-900/10">
+                                    <p className="text-[11px] font-bold text-slate-500 mb-1 uppercase tracking-wide dark:text-fuchsia-400">Utilization</p>
+                                    <p className="text-3xl font-black text-slate-800 tracking-tight dark:text-fuchsia-100">{summary!.utilization.toFixed(2)}%</p>
                                 </div>
                             </div>
 
-                            <h3 className="text-[13px] font-black uppercase tracking-widest text-slate-800 mb-4">Daily Breakdown</h3>
+                            <h3 className="text-[13px] font-black uppercase tracking-widest text-slate-800 mb-4 dark:text-slate-100">Daily Breakdown</h3>
                             
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm text-left whitespace-nowrap">
                                     <thead>
-                                        <tr className="border-b border-slate-200 text-slate-500 text-[11px] font-bold uppercase tracking-wider">
+                                        <tr className="border-b border-slate-200 text-slate-500 text-[11px] font-bold uppercase tracking-wider dark:border-slate-800 dark:text-slate-400">
                                             <th className="py-4 px-4 font-bold text-center">Date</th>
                                             <th className="py-4 px-4 font-bold text-center">Sales</th>
                                             <th className="py-4 px-4 font-bold text-center">Prize Fund</th>
@@ -272,7 +272,7 @@ export const PrizeUtilizationPage = () => {
                                     <tbody>
                                         {previewData.length === 0 ? (
                                             <tr>
-                                                <td colSpan={6} className="py-12 text-center text-slate-500 font-medium">No generated batches found for this period</td>
+                                                <td colSpan={6} className="py-12 text-center text-slate-500 font-medium dark:text-slate-400">No generated batches found for this period</td>
                                             </tr>
                                         ) : (
                                             previewData.map((batch) => {
@@ -283,12 +283,12 @@ export const PrizeUtilizationPage = () => {
                                                 const balance = fund - payout;
                                                 
                                                 return (
-                                                    <tr key={batch.id} className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
-                                                        <td className="py-4 px-4 font-semibold text-slate-800 text-center">{formatDate(batch.date)}</td>
-                                                        <td className="py-4 px-4 font-bold text-slate-700 text-center">{formatCurrency(sales)}</td>
-                                                        <td className="py-4 px-4 font-bold text-slate-700 text-center">{formatCurrency(fund)}</td>
-                                                        <td className="py-4 px-4 font-bold text-slate-700 text-center">{formatCurrency(payout)}</td>
-                                                        <td className="py-4 px-4 font-bold text-slate-700 text-center">{util.toFixed(2)}%</td>
+                                                    <tr key={batch.id} className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors dark:border-slate-800 dark:hover:bg-slate-800/50">
+                                                        <td className="py-4 px-4 font-semibold text-slate-800 text-center dark:text-slate-200">{formatDate(batch.date)}</td>
+                                                        <td className="py-4 px-4 font-bold text-slate-700 text-center dark:text-slate-300">{formatCurrency(sales)}</td>
+                                                        <td className="py-4 px-4 font-bold text-slate-700 text-center dark:text-slate-300">{formatCurrency(fund)}</td>
+                                                        <td className="py-4 px-4 font-bold text-slate-700 text-center dark:text-slate-300">{formatCurrency(payout)}</td>
+                                                        <td className="py-4 px-4 font-bold text-slate-700 text-center dark:text-slate-300">{util.toFixed(2)}%</td>
                                                         <td className={`py-4 px-4 font-black text-center tracking-tight ${balance < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
                                                             {formatCurrency(balance)}
                                                         </td>

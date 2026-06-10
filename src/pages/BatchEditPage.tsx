@@ -95,15 +95,16 @@ const BatchEditPage = () => {
         }
     };
 
-    if (!batch) return <div className="p-8 text-center">Batch not found</div>;
+    if (!batch) return <div className="p-8 text-center dark:bg-slate-950 dark:text-slate-200 min-h-screen">Batch not found</div>;
 
     return (
-        <div className="container mx-auto py-8 px-4 max-w-2xl">
-            <Button variant="ghost" className="mb-4 gap-2" onClick={() => navigate('/batches')}>
-                <ArrowLeft className="h-4 w-4" /> Back to Batches
-            </Button>
+        <div className="min-h-screen bg-[#f7f8fa] dark:bg-slate-950 transition-colors duration-300">
+            <div className="container mx-auto py-8 px-4 max-w-2xl text-slate-900 dark:text-slate-50">
+                <Button variant="ghost" className="mb-4 gap-2 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-50" onClick={() => navigate('/batches')}>
+                    <ArrowLeft className="h-4 w-4" /> Back to Batches
+                </Button>
 
-            <Card className="shadow-xl">
+                <Card className="shadow-xl dark:border-slate-800 dark:bg-slate-900">
                 <CardHeader>
                     <CardTitle className="text-2xl">Configure Batch: {batch.name}</CardTitle>
                 </CardHeader>
@@ -165,13 +166,14 @@ const BatchEditPage = () => {
                     </div>
                 </CardContent>
                 <CardFooter className="flex justify-end gap-2 border-t pt-6">
-                    <Button variant="outline" onClick={() => navigate('/batches')}>Cancel</Button>
+                    <Button variant="outline" className="dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800" onClick={() => navigate('/batches')}>Cancel</Button>
                     <Button onClick={handleGenerate} disabled={isGenerating} className="gap-2">
                         {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                         Generate Batch
                     </Button>
                 </CardFooter>
             </Card>
+            </div>
         </div>
     );
 };

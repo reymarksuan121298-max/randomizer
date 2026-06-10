@@ -50,10 +50,11 @@ export const DSRPreviewPage = () => {
     const bookletLabel = selectedBookletIdx === -1 ? "All Booklets" : `Booklet ${selectedBookletIdx + 1}`;
 
     return (
-        <div className="container mx-auto py-8 px-4">
+        <div className="min-h-screen bg-[#f7f8fa] dark:bg-slate-950 text-slate-900 dark:text-slate-50 transition-colors duration-300">
+            <div className="container mx-auto py-8 px-4">
             <div className="flex justify-between items-center mb-8">
                 <div className="flex items-center gap-4">
-                    <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
+                    <Button variant="outline" size="icon" onClick={() => navigate(-1)} className="dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800">
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <h1 className="text-3xl font-bold">DSR Preview: {batchData.name} — {bookletLabel}</h1>
@@ -63,7 +64,7 @@ export const DSRPreviewPage = () => {
                 </Button>
             </div>
 
-            <Card className="min-h-[600px] overflow-auto">
+            <Card className="min-h-[600px] overflow-auto dark:border-slate-800 dark:bg-slate-900">
                 <CardContent className="p-8">
                     <div className="max-w-4xl mx-auto border p-12 shadow-inner bg-white text-black font-serif">
                         <h2 className="text-2xl font-bold text-center border-b-2 pb-4 mb-8">DAILY SALES REPORT</h2>
@@ -106,6 +107,7 @@ export const DSRPreviewPage = () => {
                     </div>
                 </CardContent>
             </Card>
+            </div>
         </div>
     );
 };

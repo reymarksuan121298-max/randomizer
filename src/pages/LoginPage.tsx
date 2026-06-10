@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Eye, EyeOff, LogIn, Moon } from "lucide-react";
+import { Eye, EyeOff, LogIn, Moon, Sun } from "lucide-react";
 import { getDefaultLogosFromDatabase } from "@/lib/database";
 import defaultLeftLogo from "@/assets/left-logo.png";
 import defaultRightLogo from "@/assets/right-logo.png";
@@ -15,6 +15,7 @@ export const LoginPage = () => {
     const [password, setPassword] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [isDark, setIsDark] = useState(false);
     const [logos, setLogos] = useState<{ leftLogo?: string | null; rightLogo?: string | null }>({
         leftLogo: defaultLeftLogo,
         rightLogo: defaultRightLogo
@@ -28,7 +29,13 @@ export const LoginPage = () => {
             setLogos(defaultLogos);
         };
         loadLogos();
+        setIsDark(document.documentElement.classList.contains("dark"));
     }, []);
+
+    const toggleTheme = () => {
+        const willBeDark = document.documentElement.classList.toggle("dark");
+        setIsDark(willBeDark);
+    };
 
     useEffect(() => {
         if (user && !isLoading) {
@@ -51,19 +58,28 @@ export const LoginPage = () => {
     };
 
     return (
-        <main className="relative min-h-screen overflow-hidden bg-[#f7f8fa] text-slate-950">
+        <main className="relative min-h-screen overflow-hidden bg-[#f7f8fa] text-slate-950 dark:bg-slate-950 dark:text-slate-50 transition-colors duration-300">
+
+
             <Button
                 variant="outline"
                 size="icon"
-                className="absolute right-5 top-5 z-20 h-11 w-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-sm"
-                onClick={() => document.documentElement.classList.toggle("dark")}
+                className="absolute right-5 top-5 z-20 h-11 w-11 rounded-xl border-slate-200 bg-white text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors"
+                onClick={toggleTheme}
                 aria-label="Toggle theme"
             >
-                <Moon className="h-5 w-5" />
+                {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
 
-            <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[1.05fr_0.95fr]">
-                <section className="relative hidden min-h-screen items-center justify-center overflow-hidden bg-[#fff7d8] lg:flex">
+            <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] relative z-10">
+                <section className="relative hidden min-h-screen items-center justify-center overflow-hidden bg-[#fff7d8] dark:bg-[#1a1300] lg:flex transition-colors duration-300">
+                    <div
+                        className="pointer-events-none absolute inset-0 z-0 bg-center bg-no-repeat opacity-[0.15]"
+                        style={{
+                            backgroundImage: `url(${logos?.rightLogo || defaultRightLogo})`,
+                            backgroundSize: '80%'
+                        }}
+                    />
                     <div className="relative z-10 flex w-full max-w-[640px] flex-col items-center text-center">
                         {logos.rightLogo ? (
                             <img src={logos.rightLogo} alt="STL Logo" className="mb-7 h-36 w-36 object-contain" />
@@ -71,15 +87,22 @@ export const LoginPage = () => {
                             <LogoMark className="mb-7 h-36 w-36" />
                         )}
                         <p className="mb-5 text-4xl font-black uppercase tracking-wide text-[#f7b500]">Welcome To</p>
-                        <h1 className="mb-7 text-5xl font-black uppercase tracking-wide text-slate-950">STL Ticket System</h1>
-                        <p className="max-w-[520px] text-2xl leading-snug text-slate-600">
+                        <h1 className="mb-7 text-5xl font-black uppercase tracking-wide text-slate-950 dark:text-white">STL Ticket System</h1>
+                        <p className="max-w-[520px] text-2xl leading-snug text-slate-600 dark:text-slate-400">
                             Manage your lottery booklets, batches, and companies with ease
                         </p>
                     </div>
                 </section>
 
-                <section className="flex min-h-screen items-center justify-center px-5 py-16 lg:px-12">
-                    <div className="w-full max-w-[505px]">
+                <section className="relative flex min-h-screen items-center justify-center px-5 py-16 lg:px-12">
+                    <div
+                        className="pointer-events-none absolute inset-0 z-0 bg-center bg-no-repeat opacity-[0.15]"
+                        style={{
+                            backgroundImage: `url(${logos?.leftLogo || defaultLeftLogo})`,
+                            backgroundSize: '80%'
+                        }}
+                    />
+                    <div className="relative z-10 w-full max-w-[505px]">
                         <div className="mb-10 text-center">
                             {logos.leftLogo ? (
                                 <img src={logos.leftLogo} alt="Company Logo" className="mx-auto mb-6 h-14 w-14 object-contain" />
@@ -87,16 +110,16 @@ export const LoginPage = () => {
                                 <LogoSwirl className="mx-auto mb-6 h-14 w-14" />
                             )}
                             <h2 className="mb-4 text-3xl font-black uppercase tracking-wide text-[#f7b500]">Sign In</h2>
-                            <p className="text-xl text-slate-600">Enter your credentials to continue</p>
+                            <p className="text-xl text-slate-600 dark:text-slate-400">Enter your credentials to continue</p>
                         </div>
 
                         <form
                             onSubmit={handleSubmit}
-                            className="rounded-xl border border-slate-200 bg-white p-9 shadow-[0_14px_28px_rgba(15,23,42,0.12)]"
+                            className="rounded-xl border border-white/20 bg-white/10 p-9 shadow-[0_14px_28px_rgba(15,23,42,0.01)] backdrop-blur-lg dark:border-white/10 dark:bg-black/20"
                         >
                             <div className="space-y-7">
                                 <div className="space-y-3">
-                                    <Label htmlFor="email" className="text-xs font-black uppercase tracking-tight text-slate-950">
+                                    <Label htmlFor="email" className="text-xs font-black uppercase tracking-tight text-slate-950 dark:text-slate-300">
                                         Email Address
                                     </Label>
                                     <Input
@@ -105,13 +128,13 @@ export const LoginPage = () => {
                                         placeholder="lanaonorte.manager@glowingfortune.com"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        className="h-14 rounded-xl border-slate-200 bg-slate-50 px-4 font-mono text-base text-slate-950 shadow-inner placeholder:text-slate-500"
+                                        className="h-14 rounded-xl border-slate-200 bg-slate-50 px-4 font-mono text-base text-slate-950 shadow-inner placeholder:text-slate-500 dark:border-slate-800 dark:bg-slate-900/50 dark:text-white dark:placeholder:text-slate-600"
                                         required
                                     />
                                 </div>
 
                                 <div className="space-y-3">
-                                    <Label htmlFor="password" className="text-xs font-black uppercase tracking-tight text-slate-950">
+                                    <Label htmlFor="password" className="text-xs font-black uppercase tracking-tight text-slate-950 dark:text-slate-300">
                                         Password
                                     </Label>
                                     <div className="relative">
@@ -120,12 +143,12 @@ export const LoginPage = () => {
                                             type={showPassword ? "text" : "password"}
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
-                                            className="h-14 rounded-xl border-slate-200 bg-slate-50 px-4 pr-12 font-mono text-base text-slate-950 shadow-inner"
+                                            className="h-14 rounded-xl border-slate-200 bg-slate-50 px-4 pr-12 font-mono text-base text-slate-950 shadow-inner dark:border-slate-800 dark:bg-slate-900/50 dark:text-white"
                                             required
                                         />
                                         <button
                                             type="button"
-                                            className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md bg-transparent p-0 text-slate-500 hover:text-slate-900"
+                                            className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md bg-transparent p-0 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
                                             onClick={() => setShowPassword((value) => !value)}
                                             aria-label={showPassword ? "Hide password" : "Show password"}
                                         >
@@ -136,7 +159,7 @@ export const LoginPage = () => {
 
                                 <Button
                                     type="submit"
-                                    className="h-14 w-full rounded-xl bg-[#f7a900] text-sm font-black uppercase tracking-wide text-slate-950 shadow-none hover:bg-[#ed9f00]"
+                                    className="h-14 w-full rounded-xl bg-[#f7a900] text-sm font-black uppercase tracking-wide text-slate-950 shadow-none hover:bg-[#ed9f00] dark:text-slate-950 dark:hover:bg-[#f8b622]"
                                     disabled={isSubmitting}
                                 >
                                     <LogIn className="h-5 w-5" />
@@ -145,8 +168,8 @@ export const LoginPage = () => {
                             </div>
                         </form>
 
-                        <p className="mt-10 text-center text-base text-slate-600">
-                            Powered by <span className="font-black text-slate-950">RKD Tech Solutions Inc.</span>
+                        <p className="mt-10 text-center text-base text-slate-600 dark:text-slate-400">
+                            Powered by <span className="font-black text-slate-950 dark:text-white">RKD Tech Solutions Inc.</span>
                         </p>
                     </div>
                 </section>

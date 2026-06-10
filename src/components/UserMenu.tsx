@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { KeyRound, LogOut, UserRound } from "lucide-react";
+import { KeyRound, LogOut, UserRound, Moon, Sun } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,7 +12,7 @@ export function UserMenu() {
     const [isPasswordOpen, setIsPasswordOpen] = useState(false);
 
     return (
-        <div className="absolute right-4 top-4 z-50">
+        <div className="fixed right-4 top-4 z-50">
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button
@@ -43,19 +43,34 @@ export function UserMenu() {
                             </div>
                         </div>
                     </div>
-                    <DropdownMenuItem className="mt-2 gap-2 rounded-md py-3 text-sm cursor-pointer" onClick={() => setIsPasswordOpen(true)}>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 shrink-0 rounded-xl border-slate-200 bg-white text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 transition-colors"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                document.documentElement.classList.toggle("dark");
+                            }}
+                            aria-label="Toggle theme"
+                        >
+                            <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                            <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                        </Button>
+                        <DropdownMenuItem
+                            className="flex-1 justify-end gap-2 rounded-md py-3 text-sm cursor-pointer font-medium"
+                            onClick={async () => {
+                                await logout();
+                                navigate("/login");
+                            }}
+                        >
+                            <LogOut className="h-4 w-4" />
+                            Logout
+                        </DropdownMenuItem>
+                    </div>
+                    <DropdownMenuItem className="gap-2 rounded-md py-3 text-sm cursor-pointer font-medium" onClick={() => setIsPasswordOpen(true)}>
                         <KeyRound className="h-4 w-4" />
                         Change Password
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                        className="gap-2 rounded-md py-3 text-sm cursor-pointer"
-                        onClick={async () => {
-                            await logout();
-                            navigate("/login");
-                        }}
-                    >
-                        <LogOut className="h-4 w-4" />
-                        Logout
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>

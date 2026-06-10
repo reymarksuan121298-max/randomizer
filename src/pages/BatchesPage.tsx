@@ -346,13 +346,13 @@ export const BatchesPage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#f6f7f9] px-6 py-7 text-slate-900">
+        <div className="min-h-screen bg-[#f6f7f9] px-6 py-7 text-slate-900 dark:bg-slate-950 dark:text-slate-50 transition-colors duration-300">
             <div className="mx-auto max-w-[1180px]">
                 <header className="mb-6 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                         <Button
                             variant="outline"
-                            className="h-9 rounded-md border-slate-200 bg-white px-4 text-[11px] font-black uppercase text-slate-900 shadow-sm"
+                            className="h-9 rounded-md border-slate-200 bg-white px-4 text-[11px] font-black uppercase text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
                             onClick={() => navigate("/")}
                         >
                             <ArrowLeft className="h-4 w-4" />
@@ -367,14 +367,14 @@ export const BatchesPage = () => {
                         <DropdownMenuTrigger asChild>
                             <Button
                                 variant="outline"
-                                className="h-9 rounded-md border-slate-200 bg-white px-4 text-[11px] font-black uppercase text-slate-900 shadow-sm"
+                                className="h-9 rounded-md border-slate-200 bg-white px-4 text-[11px] font-black uppercase text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
                             >
                                 <FileSpreadsheet className="h-4 w-4" />
                                 Monthly Exports
                                 <ChevronDown className="h-4 w-4" />
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56 rounded-md border-slate-200 bg-white p-1.5 shadow-lg">
+                        <DropdownMenuContent align="end" className="w-56 rounded-md border-slate-200 bg-white p-1.5 shadow-lg dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">
                             <DropdownMenuItem 
                                 className="gap-2 rounded-sm py-3 text-[11px] font-black uppercase"
                                 onClick={() => setIsAlphaOpen(true)}
@@ -399,7 +399,7 @@ export const BatchesPage = () => {
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="SEARCH BY BATCH NAME, PROVINCE, OR CREATOR..."
-                        className="h-9 rounded-md border-slate-200 bg-white pl-10 text-[11px] font-black uppercase shadow-sm placeholder:text-slate-500"
+                        className="h-9 rounded-md border-slate-200 bg-white pl-10 text-[11px] font-black uppercase shadow-sm placeholder:text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400"
                     />
                 </div>
 
@@ -419,7 +419,7 @@ export const BatchesPage = () => {
                 ) : (
                     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
                         {paginated.map((batch) => (
-                            <Card key={batch.id} className="rounded-lg border border-slate-200 bg-white shadow-sm">
+                            <Card key={batch.id} className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
                                 <CardContent className="p-5">
                                     <div className="mb-2 flex items-start justify-between gap-3">
                                         <h2 className="font-mono text-sm font-black uppercase tracking-tight text-[#f7b500]">
@@ -431,7 +431,7 @@ export const BatchesPage = () => {
                                         </span>
                                     </div>
 
-                                    <p className="mb-5 truncate text-sm font-medium uppercase tracking-wide text-slate-600">
+                                    <p className="mb-5 truncate text-sm font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
                                         {batch.province || batch.name}
                                     </p>
 
@@ -448,15 +448,15 @@ export const BatchesPage = () => {
                                     </div>
 
                                     <div className="mb-5 space-y-2">
-                                        <div className="flex items-center gap-2 text-[12px] font-black text-slate-900">
+                                        <div className="flex items-center gap-2 text-[12px] font-black text-slate-900 dark:text-slate-300">
                                             <Calendar className="h-3.5 w-3.5 text-[#f7b500]" />
                                             Batch Date: {batch.date}
                                         </div>
-                                        <div className="flex items-center gap-2 text-[12px] text-slate-500">
+                                        <div className="flex items-center gap-2 text-[12px] text-slate-500 dark:text-slate-400">
                                             <Calendar className="h-3.5 w-3.5 text-slate-400" />
                                             Created: {formatDateTime(batch.createdAt)}
                                         </div>
-                                        <p className="pl-5 text-[12px] text-slate-500">Created by: {batch.createdBy}</p>
+                                        <p className="pl-5 text-[12px] text-slate-500 dark:text-slate-400">Created by: {batch.createdBy}</p>
                                     </div>
 
                                     <div className="grid grid-cols-[1fr_1fr_38px] gap-2">
@@ -675,9 +675,9 @@ export const BatchesPage = () => {
 };
 
 const Metric = ({ label, value }: { label: string; value: string }) => (
-    <div className="rounded-lg bg-slate-50 px-3 py-4">
-        <div className="mb-1 text-[10px] text-slate-500">{label}</div>
-        <div className="truncate text-base font-black text-slate-950">{value}</div>
+    <div className="rounded-lg bg-slate-50 px-3 py-4 dark:bg-slate-800/50">
+        <div className="mb-1 text-[10px] text-slate-500 dark:text-slate-400">{label}</div>
+        <div className="truncate text-base font-black text-slate-950 dark:text-slate-200">{value}</div>
     </div>
 );
 

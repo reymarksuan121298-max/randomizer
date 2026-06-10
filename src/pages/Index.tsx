@@ -223,33 +223,33 @@ const Index = () => {
     };
 
     return (
-        <main className="min-h-screen bg-[#f7f8fa] px-3 py-4 text-slate-900">
-            <div className="mx-auto max-w-[650px]">
+        <main className="min-h-screen bg-[#f7f8fa] px-3 py-2 text-slate-900 relative dark:bg-slate-950 dark:text-slate-50 transition-colors duration-300">
+            <div className="mx-auto max-w-[650px] relative z-10">
                 <header className="mb-4 text-center">
                     <div className="mb-1 flex items-center justify-center gap-3">
                         {logos?.leftLogo ? (
-                            <img src={logos.leftLogo} alt="Company Logo" className="h-12 w-12 object-contain rounded-md" />
+                            <img src={logos.leftLogo} alt="Company Logo" className="h-8 w-8 object-contain rounded-md" />
                         ) : (
-                            <div className="relative h-12 w-12 rounded-full bg-[conic-gradient(from_15deg,#fbbf24_0_16%,#dc2626_16%_31%,#1d4ed8_31%_52%,#f8fafc_52%_62%,#1d4ed8_62%_76%,#fbbf24_76%_88%,#dc2626_88%_100%)] shadow-sm">
-                                <div className="absolute inset-2 rounded-full bg-white/85" />
-                                <div className="absolute inset-4 rounded-full bg-[#1d4ed8]" />
+                            <div className="relative h-8 w-8 rounded-full bg-[conic-gradient(from_15deg,#fbbf24_0_16%,#dc2626_16%_31%,#1d4ed8_31%_52%,#f8fafc_52%_62%,#1d4ed8_62%_76%,#fbbf24_76%_88%,#dc2626_88%_100%)] shadow-sm">
+                                <div className="absolute inset-1.5 rounded-full bg-white/85" />
+                                <div className="absolute inset-2.5 rounded-full bg-[#1d4ed8]" />
                             </div>
                         )}
-                        <h1 className="text-[27px] font-black uppercase leading-none tracking-wide text-[#f6b719]">
+                        <h1 className="text-xl font-black uppercase leading-none tracking-wide text-[#f6b719]">
                             STL Ticket System
                         </h1>
                         {logos?.rightLogo ? (
-                            <img src={logos.rightLogo} alt="STL Logo" className="h-12 w-12 object-contain rounded-md" />
+                            <img src={logos.rightLogo} alt="STL Logo" className="h-8 w-8 object-contain rounded-md" />
                         ) : (
-                            <div className="relative h-12 w-11">
-                                <div className="absolute left-1 top-0 h-9 w-8 rounded-sm border-l-[7px] border-t-[7px] border-[#1d4ed8]" />
-                                <div className="absolute bottom-1 left-2 h-2 w-8 bg-[#f6b719]" />
-                                <div className="absolute bottom-0 right-0 h-8 w-7 border-b-[7px] border-r-[7px] border-[#dc2626]" />
+                            <div className="relative h-8 w-7">
+                                <div className="absolute left-1 top-0 h-6 w-5 rounded-sm border-l-[5px] border-t-[5px] border-[#1d4ed8]" />
+                                <div className="absolute bottom-1 left-2 h-1.5 w-5 bg-[#f6b719]" />
+                                <div className="absolute bottom-0 right-0 h-6 w-5 border-b-[5px] border-r-[5px] border-[#dc2626]" />
                             </div>
                         )}
                     </div>
 
-                    <div className="mb-3 flex items-center justify-center gap-1 text-[10px] font-bold text-slate-500">
+                    <div className="mb-3 flex items-center justify-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
                         <Calendar className="h-3 w-3" />
                         <span>{formattedDate}</span>
                     </div>
@@ -257,7 +257,7 @@ const Index = () => {
                     <div className="mb-2 grid grid-cols-3 gap-2">
                         <Button
                             variant="outline"
-                            className="h-7 gap-1 border-[#f6b719] px-1 text-[8px] font-bold uppercase text-[#d89a00]"
+                            className="h-6 gap-1 border-[#f6b719] px-1 text-[8px] font-bold uppercase text-[#d89a00]"
                             onClick={() => navigate("/company-settings")}
                         >
                             <Settings className="h-3 w-3" />
@@ -265,7 +265,7 @@ const Index = () => {
                         </Button>
                         <Button
                             variant="outline"
-                            className="h-7 gap-1 border-[#f6b719] px-1 text-[8px] font-bold uppercase text-[#d89a00]"
+                            className="h-6 gap-1 border-[#f6b719] px-1 text-[8px] font-bold uppercase text-[#d89a00]"
                             onClick={() => navigate("/batches")}
                         >
                             <ClipboardList className="h-3 w-3" />
@@ -273,7 +273,7 @@ const Index = () => {
                         </Button>
                         <Button
                             variant="outline"
-                            className="h-7 gap-1 border-[#f6b719] px-1 text-[8px] font-bold uppercase text-[#d89a00]"
+                            className="h-6 gap-1 border-[#f6b719] px-1 text-[8px] font-bold uppercase text-[#d89a00]"
                             onClick={() => navigate("/prize-utilization")}
                         >
                             <FileText className="h-3 w-3" />
@@ -281,39 +281,39 @@ const Index = () => {
                         </Button>
                     </div>
 
-                    <p className="flex items-center justify-center gap-1 text-[10px] text-slate-500">
+                    <p className="flex items-center justify-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
                         <Ticket className="h-3 w-3" />
                         50 Sheets per Booklet (11-{companyCode}-001 to 11-{companyCode}-050) - 250 Tickets Total
                     </p>
                 </header>
 
-                <Card className="rounded-md border-slate-200 bg-white shadow-sm">
-                    <CardContent className="space-y-4 p-4">
-                        <h2 className="text-center text-[13px] font-black uppercase tracking-wide">Generate Booklets</h2>
+                <Card className="rounded-md border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                    <CardContent className="space-y-2 p-2.5">
+                        <h2 className="text-center text-[12px] font-black uppercase tracking-wide">Generate Booklets</h2>
 
-                        <section className="grid grid-cols-2 gap-x-3 gap-y-3">
+                        <section className="grid grid-cols-2 gap-x-3 gap-y-1.5">
                             <div className="col-span-2">
                                 <Field label="Company" helper="Your assigned company and province">
-                                    <Input value={company} readOnly className="h-8 text-[10px] bg-slate-50 cursor-not-allowed text-slate-600 font-semibold" />
+                                    <Input value={company} readOnly className="h-7 text-[9px] bg-slate-50 cursor-not-allowed text-slate-600 font-semibold dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-800" />
                                 </Field>
                             </div>
                             <Field label="Batch Date" helper="Date for the generated batch">
-                                <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="h-8 text-[10px] font-mono text-slate-700" />
+                                <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="h-7 text-[9px] font-mono text-slate-700" />
                             </Field>
                             <Field label="Daily Revenue (PHP)" helper="Total revenue across all booklets">
-                                <Input type="number" value={dailyRevenue} onChange={(e) => setDailyRevenue(parseInt(e.target.value) || 0)} className="h-8 text-[10px]" />
+                                <Input type="number" value={dailyRevenue} onChange={(e) => setDailyRevenue(parseInt(e.target.value) || 0)} className="h-7 text-[9px]" />
                             </Field>
                             <Field label="Total Payout (PHP)" helper="Total payout for winners">
-                                <Input type="number" value={totalPayout} onChange={(e) => setTotalPayout(parseInt(e.target.value) || 0)} className="h-8 text-[10px]" />
+                                <Input type="number" value={totalPayout} onChange={(e) => setTotalPayout(parseInt(e.target.value) || 0)} className="h-7 text-[9px]" />
                             </Field>
                             <Field label="Number of Booklets" helper="How many booklets per day">
-                                <Input type="number" min={1} value={bookletCount} onChange={(e) => setBookletCount(parseInt(e.target.value) || 1)} className="h-8 text-[10px]" />
+                                <Input type="number" min={1} value={bookletCount} onChange={(e) => setBookletCount(parseInt(e.target.value) || 1)} className="h-7 text-[9px]" />
                             </Field>
                             <Field label="Minimum Bet (PHP)" helper="Minimum bet per number">
-                                <Input type="number" value={minBet} onChange={(e) => setMinBet(parseInt(e.target.value) || 5)} className="h-8 text-[10px]" />
+                                <Input type="number" value={minBet} onChange={(e) => setMinBet(parseInt(e.target.value) || 5)} className="h-7 text-[9px]" />
                             </Field>
                             <Field label="Maximum Bet (PHP)" helper="Maximum bet per number">
-                                <Input type="number" value={maxBet} onChange={(e) => setMaxBet(parseInt(e.target.value) || 150)} className="h-8 text-[10px]" />
+                                <Input type="number" value={maxBet} onChange={(e) => setMaxBet(parseInt(e.target.value) || 150)} className="h-7 text-[9px]" />
                             </Field>
                         </section>
 
@@ -340,13 +340,13 @@ const Index = () => {
                             <p className="mt-2 text-[9px] text-slate-500">Each game type has its own multiplier. Payout = bet x multiplier</p>
                         </Panel>
 
-                        <section className="rounded-md border border-slate-200 bg-white p-3 shadow-sm">
+                        <section className="rounded-md border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                             <div className="flex items-start justify-between">
                                 <div>
                                     <h3 className="text-[10px] font-black uppercase">Winning Numbers (Optional)</h3>
-                                    <p className="mt-1 text-[9px] text-slate-500">Enter winning numbers if you want to allocate a specific total payout</p>
+                                    <p className="mt-0.5 text-[8px] text-slate-500">Enter winning numbers if you want to allocate a specific total payout</p>
                                 </div>
-                                <div className="flex items-center gap-1.5 mt-0.5 rounded-md border border-slate-200 bg-white px-2 py-1 shadow-sm">
+                                <div className="flex items-center gap-1.5 mt-0.5 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
                                     <input
                                         type="checkbox"
                                         id="disable-local"
@@ -354,20 +354,23 @@ const Index = () => {
                                         onChange={(e) => setDisableLocal(e.target.checked)}
                                         className="h-3 w-3 accent-[#f6b719]"
                                     />
-                                    <Label htmlFor="disable-local" className="text-[9px] font-bold text-slate-600 cursor-pointer">Disable Local</Label>
+                                    <Label htmlFor="disable-local" className="text-[8px] font-bold text-slate-600 cursor-pointer dark:text-slate-300">Disable Local</Label>
                                 </div>
                             </div>
-                            <div className="mt-3 grid grid-cols-3 gap-2">
+                            <div className="mt-2 grid grid-cols-3 gap-2">
                                 {activeGameTypes.map((gt) => {
                                     const isLocal = !gt.isNational;
                                     const isDisabled = disableLocal && isLocal;
                                     const placeholder = gt.digits === 3 ? "000-999" : "00-99";
                                     const lowerCompany = company.toLowerCase();
-                                    const isAutoFillCompany = lowerCompany.includes("maguindanao") || lowerCompany.includes("imperial");
+                                    const isAutoFillCompany = lowerCompany.includes("maguindanao") || lowerCompany.includes("imperial") || lowerCompany.includes("5a royal");
+                                    
+                                    if (isDisabled) return null;
+                                    
                                     return (
                                         <div key={gt.id} className={`space-y-1 ${isDisabled ? 'opacity-40 grayscale' : ''}`}>
                                             <div className="flex items-center gap-1">
-                                                <Label className="truncate text-[8px] font-black">{gt.name}</Label>
+                                                <Label className="truncate text-[7px] font-black">{gt.name}</Label>
                                                 <Badge className={`h-3 rounded-[3px] px-1 text-[6px] ${isLocal ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                                                     {isLocal ? "Local" : "National"}
                                                 </Badge>
@@ -377,7 +380,7 @@ const Index = () => {
                                                     winningInputs.current[gt.id] = el;
                                                 }}
                                                 placeholder={placeholder}
-                                                className="h-7 text-center text-[9px]"
+                                                className="h-6 text-center text-[8px]"
                                                 disabled={isDisabled}
                                                 onChange={(e) => {
                                                     if (isAutoFillCompany && gt.digits === 3) {
@@ -396,14 +399,14 @@ const Index = () => {
                             </div>
                         </section>
 
-                        <section className="space-y-3">
+                        <section className="space-y-2">
                             <h3 className="text-[10px] font-black uppercase">Serial Number Ranges (250 per Booklet)</h3>
                             {Array.from({ length: bookletCount }).map((_, i) => {
                                 const startNum = parseInt(serialStarts[i] || "1000001") || 1000001;
                                 const endNum = startNum + 249;
                                 return (
                                     <Panel key={i}>
-                                        <h4 className="mb-2 text-[9px] font-black uppercase text-[#f6b719]">Booklet {i + 1}</h4>
+                                        <h4 className="mb-1.5 text-[9px] font-black uppercase text-[#f6b719]">Booklet {i + 1}</h4>
                                         <div className="grid grid-cols-2 gap-2">
                                             <Field label="Serial Start" helper="Range: 250 serials">
                                                 <Input
@@ -415,14 +418,14 @@ const Index = () => {
                                                             handleBookletSerialChange(i, e.target.value);
                                                         }
                                                     }}
-                                                    className="h-8 text-[10px]"
+                                                    className="h-6 text-[9px]"
                                                 />
                                             </Field>
                                             <Field label="Serial End" helper="&nbsp;">
                                                 <Input
                                                     value={endNum.toString()}
                                                     readOnly
-                                                    className="h-8 text-[10px]"
+                                                    className="h-6 text-[9px]"
                                                 />
                                             </Field>
                                         </div>
@@ -434,7 +437,7 @@ const Index = () => {
                         <Panel>
                             <div className="mb-3 flex items-center justify-between">
                                 <h3 className="text-[10px] font-black uppercase">Bet Distribution</h3>
-                                <button className="text-[8px] font-semibold text-slate-500" onClick={() => setBetDistribution([80])}>
+                                <button className="text-[8px] font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300" onClick={() => setBetDistribution([80])}>
                                     Reset to 80/20
                                 </button>
                             </div>
@@ -467,7 +470,7 @@ const Index = () => {
                             size="lg"
                             onClick={handleGenerate}
                             disabled={isGenerating}
-                            className="h-9 w-full rounded-md bg-[#f6c65b] text-[10px] font-black uppercase tracking-wide text-[#9a6b00] hover:bg-[#f3bc42]"
+                            className="h-8 w-full rounded-md bg-[#f6c65b] text-[10px] font-black uppercase tracking-wide text-[#9a6b00] hover:bg-[#f3bc42]"
                         >
                             {isGenerating ? (
                                 <>
@@ -489,14 +492,14 @@ const Index = () => {
 };
 
 const Panel = ({ children }: { children: React.ReactNode }) => (
-    <section className="rounded-md border border-slate-200 bg-slate-50/50 p-3">{children}</section>
+    <section className="rounded-md border border-slate-200 bg-slate-50/50 p-2 dark:border-slate-800 dark:bg-slate-800/50">{children}</section>
 );
 
 const Field = ({ label, helper, children }: { label: string; helper: string; children: React.ReactNode }) => (
-    <div className="min-w-0 space-y-1">
-        <Label className="block truncate text-[9px] font-black uppercase tracking-tight">{label}</Label>
+    <div className="min-w-0 space-y-0.5">
+        <Label className="block truncate text-[8px] font-black uppercase tracking-tight">{label}</Label>
         {children}
-        <p className="truncate text-[8px] text-slate-500">{helper}</p>
+        <p className="truncate text-[7px] text-slate-500">{helper}</p>
     </div>
 );
 
